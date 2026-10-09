@@ -70,7 +70,7 @@ public class InvoiceDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(x => x.ActiveVersionId)
                 .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<InvoiceTemplateVersion>(entity =>
