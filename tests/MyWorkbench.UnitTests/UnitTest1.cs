@@ -1,11 +1,18 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
+using System.Collections;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Primitives;
 using MyWorkbench.Shared;
 using MyWorkbench.Modules.Invoices.Application;
 using MyWorkbench.Modules.Invoices.Contracts;
 using MyWorkbench.Modules.Invoices.Domain;
 using MyWorkbench.Modules.Invoices.Persistence;
 using MyWorkbench.Infrastructure;
+using MyWorkbench.Api;
 
 namespace MyWorkbench.UnitTests;
 
@@ -43,6 +50,57 @@ public class ModuleRegistryTests
 
         Assert.Single(enabledModules);
         Assert.Equal("invoices", enabledModules[0].Id);
+    }
+}
+
+public class AuthenticationSettingsTests
+{
+    [Fact]
+    public void Development_Should_Not_Require_Authentication_By_Default()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Authentication:RequireAuthentication"] = "false"
+            })
+            .Build();
+
+        var environment = new FakeHostEnvironment { EnvironmentName = Environments.Development };
+
+        Assert.False(AppAuthenticationSettings.ShouldRequireAuthentication(configuration, environment));
+    }
+
+    private sealed class FakeHostEnvironment : IHostEnvironment
+    {
+        public string ApplicationName { get; set; } = "MyWorkbench.Api";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public string EnvironmentName { get; set; } = Environments.Production;
+    }
+
+    private sealed class NullFileProvider : IFileProvider
+    {
+        public IDirectoryContents GetDirectoryContents(string subpath) => new NotFoundDirectoryContents();
+        public IFileInfo GetFileInfo(string subpath) => new NotFoundFileInfo(subpath);
+        public IChangeToken Watch(string filter) => NullChangeToken.Singleton;
+
+        private sealed class NotFoundDirectoryContents : IDirectoryContents
+        {
+            public bool Exists => false;
+            public IEnumerator<IFileInfo> GetEnumerator() => Enumerable.Empty<IFileInfo>().GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+
+        private sealed class NotFoundFileInfo(string name) : IFileInfo
+        {
+            public bool Exists => false;
+            public long Length => 0;
+            public string PhysicalPath => name;
+            public string Name => name;
+            public DateTimeOffset LastModified => DateTimeOffset.MinValue;
+            public bool IsDirectory => false;
+            public Stream CreateReadStream() => new MemoryStream();
+        }
     }
 }
 
@@ -128,7 +186,7 @@ public class TemplateVersioningTests
             .Options;
 
         await using var dbContext = new InvoiceDbContext(options);
-        var service = new InvoiceTemplateService(dbContext);
+        var service = new InvoiceTemplateService(dbContext, NullLogger<InvoiceTemplateService>.Instance);
 
         var template = await service.CreateAsync(new CreateInvoiceTemplateRequest
         {
@@ -159,7 +217,8 @@ public class TemplateVersioningTests
 
         await using var dbContext = new InvoiceDbContext(options);
         var storage = new LocalFileStorage();
-        var service = new InvoiceTemplateUploadService(dbContext, storage);
+        var templateService = new InvoiceTemplateService(dbContext, NullLogger<InvoiceTemplateService>.Instance);
+        var service = new InvoiceTemplateUploadService(dbContext, storage, templateService, NullLogger<InvoiceTemplateUploadService>.Instance);
 
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A };
         await using var stream = new MemoryStream(pdfBytes);
@@ -193,8 +252,8 @@ public class TemplateVersioningTests
             .Options;
 
         await using var dbContext = new InvoiceDbContext(options);
-        var templateService = new InvoiceTemplateService(dbContext);
-        var layoutService = new InvoiceTemplateLayoutService(dbContext);
+        var templateService = new InvoiceTemplateService(dbContext, NullLogger<InvoiceTemplateService>.Instance);
+        var layoutService = new InvoiceTemplateLayoutService(dbContext, NullLogger<InvoiceTemplateLayoutService>.Instance);
 
         var template = await templateService.CreateAsync(new CreateInvoiceTemplateRequest
         {
@@ -228,7 +287,7 @@ public class TemplateVersioningTests
     [Fact]
     public async Task PreviewRenderer_ShouldReturnPdfBytesForTemplateVersion()
     {
-        var renderer = new InvoicePdfRenderer();
+        var renderer = new InvoicePdfRenderer(NullLogger<InvoicePdfRenderer>.Instance);
         var version = new InvoiceTemplateVersion
         {
             SourceType = TemplateSourceType.Pdf,
@@ -258,11 +317,11 @@ public class InvoiceGenerationTests
 
         await using var dbContext = new InvoiceDbContext(options);
         var storage = new LocalFileStorage();
-        var renderer = new InvoicePdfRenderer();
-        var generationService = new InvoiceGenerationService(dbContext, storage, renderer);
-        var draftService = new InvoiceDraftService(dbContext);
+        var renderer = new InvoicePdfRenderer(NullLogger<InvoicePdfRenderer>.Instance);
+        var generationService = new InvoiceGenerationService(dbContext, storage, renderer, NullLogger<InvoiceGenerationService>.Instance);
+        var draftService = new InvoiceDraftService(dbContext, NullLogger<InvoiceDraftService>.Instance);
 
-        var template = await new InvoiceTemplateService(dbContext).CreateAsync(new CreateInvoiceTemplateRequest
+        var template = await new InvoiceTemplateService(dbContext, NullLogger<InvoiceTemplateService>.Instance).CreateAsync(new CreateInvoiceTemplateRequest
         {
             Name = "Invoice Template",
             Description = "Main layout",

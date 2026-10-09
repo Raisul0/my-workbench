@@ -18,6 +18,8 @@ Use `docs/specification.md` as the product and architecture source of truth. Rea
 - Inspect repository state, SDK versions, existing conventions, and git changes before implementation. Preserve existing work.
 - Implement one phase at a time, list expected file changes first, and do not silently move on to later phases.
 - Use nullable reference types, async I/O, dependency injection, cancellation tokens when appropriate, structured logs, validation, and typed DTOs.
+- Always add meaningful application logging for critical flows and failures; use structured log messages with context fields.
+- Always add try/catch handling for operations that can fail (startup, I/O, external calls, persistence) and log exceptions with actionable context before rethrowing or returning safe error responses.
 - Keep endpoint handlers thin and keep business logic out of Angular components.
 - Add tests for every business rule and critical failure path. Run backend build/tests, Angular checks, and relevant end-to-end tests before marking a phase complete.
 - Do not report a test as passed unless the command was actually run and passed. Report failures and remaining limitations honestly.

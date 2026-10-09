@@ -1,21 +1,42 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 using MyWorkbench.Modules.Invoices.Domain;
 
 namespace MyWorkbench.Modules.Invoices.Application;
 
 public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
 {
+    private readonly ILogger<InvoicePdfRenderer> _logger;
+
+    public InvoicePdfRenderer(ILogger<InvoicePdfRenderer> logger)
+    {
+        _logger = logger;
+    }
+
     public Task<byte[]> RenderPreviewAsync(InvoiceTemplateVersion version, object? sampleData = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(version);
 
-        if (version.LayoutSchemaVersion <= 0)
-        {
-            throw new InvalidOperationException("The template layout schema version must be greater than zero.");
-        }
+        using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoicePdfRenderer), nameof(RenderPreviewAsync), version.Id);
+        InvoiceServiceLog.Started(_logger, nameof(RenderPreviewAsync), version.Id);
 
-        var pdfText = BuildMinimalPdf(version);
-        return Task.FromResult(Encoding.ASCII.GetBytes(pdfText));
+        try
+        {
+            if (version.LayoutSchemaVersion <= 0)
+            {
+                throw new InvalidOperationException("The template layout schema version must be greater than zero.");
+            }
+
+            var pdfText = BuildMinimalPdf(version);
+            var result = Encoding.ASCII.GetBytes(pdfText);
+            InvoiceServiceLog.Succeeded(_logger, nameof(RenderPreviewAsync), version.Id);
+            return Task.FromResult(result);
+        }
+        catch (Exception ex)
+        {
+            InvoiceServiceLog.Failed(_logger, ex, nameof(RenderPreviewAsync), version.Id);
+            throw;
+        }
     }
 
     private static string BuildMinimalPdf(InvoiceTemplateVersion version)

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MyWorkbench.Infrastructure;
 using MyWorkbench.Modules.Invoices.Domain;
 using MyWorkbench.Modules.Invoices.Persistence;
@@ -12,40 +13,71 @@ public sealed class InvoiceGenerationService
     private readonly InvoiceDbContext _dbContext;
     private readonly IFileStorage _fileStorage;
     private readonly IInvoicePdfRenderer _pdfRenderer;
+    private readonly ILogger<InvoiceGenerationService> _logger;
 
-    public InvoiceGenerationService(InvoiceDbContext dbContext, IFileStorage fileStorage, IInvoicePdfRenderer pdfRenderer)
+    public InvoiceGenerationService(
+        InvoiceDbContext dbContext,
+        IFileStorage fileStorage,
+        IInvoicePdfRenderer pdfRenderer,
+        ILogger<InvoiceGenerationService> logger)
     {
         _dbContext = dbContext;
         _fileStorage = fileStorage;
         _pdfRenderer = pdfRenderer;
+        _logger = logger;
     }
 
     public async Task<byte[]> PreviewAsync(Guid invoiceId, CancellationToken cancellationToken = default)
     {
-        var invoice = await LoadInvoiceAsync(invoiceId, cancellationToken);
-        var templateVersion = await LoadTemplateVersionAsync(invoice.TemplateVersionId, cancellationToken);
-        return await _pdfRenderer.RenderPreviewAsync(templateVersion, invoice, cancellationToken);
+        using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceGenerationService), nameof(PreviewAsync), invoiceId);
+        InvoiceServiceLog.Started(_logger, nameof(PreviewAsync), invoiceId);
+
+        try
+        {
+            var invoice = await LoadInvoiceAsync(invoiceId, cancellationToken);
+            var templateVersion = await LoadTemplateVersionAsync(invoice.TemplateVersionId, cancellationToken);
+            var bytes = await _pdfRenderer.RenderPreviewAsync(templateVersion, invoice, cancellationToken);
+            InvoiceServiceLog.Succeeded(_logger, nameof(PreviewAsync), invoiceId);
+            return bytes;
+        }
+        catch (Exception ex)
+        {
+            InvoiceServiceLog.Failed(_logger, ex, nameof(PreviewAsync), invoiceId);
+            throw;
+        }
     }
 
     public async Task<Invoice> GenerateAsync(Guid invoiceId, CancellationToken cancellationToken = default)
     {
-        var invoice = await LoadInvoiceAsync(invoiceId, cancellationToken);
-        var templateVersion = await LoadTemplateVersionAsync(invoice.TemplateVersionId, cancellationToken);
+        using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceGenerationService), nameof(GenerateAsync), invoiceId);
+        InvoiceServiceLog.Started(_logger, nameof(GenerateAsync), invoiceId);
 
-        var bytes = await _pdfRenderer.RenderPreviewAsync(templateVersion, invoice, cancellationToken);
-        var storageKey = await _fileStorage.StoreAsync(new MemoryStream(bytes), "application/pdf", $"{invoice.InvoiceNumber}.pdf", cancellationToken);
-        var checksum = ComputeSha256(bytes);
+        try
+        {
+            var invoice = await LoadInvoiceAsync(invoiceId, cancellationToken);
+            var templateVersion = await LoadTemplateVersionAsync(invoice.TemplateVersionId, cancellationToken);
 
-        invoice.PdfStorageKey = storageKey;
-        invoice.PdfSha256 = checksum;
-        invoice.Status = InvoiceStatus.Generated;
-        invoice.GeneratedAtUtc = DateTimeOffset.UtcNow;
-        invoice.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            var bytes = await _pdfRenderer.RenderPreviewAsync(templateVersion, invoice, cancellationToken);
+            var storageKey = await _fileStorage.StoreAsync(new MemoryStream(bytes), "application/pdf", $"{invoice.InvoiceNumber}.pdf", cancellationToken);
+            var checksum = ComputeSha256(bytes);
 
-        _dbContext.Invoices.Update(invoice);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+            invoice.PdfStorageKey = storageKey;
+            invoice.PdfSha256 = checksum;
+            invoice.Status = InvoiceStatus.Generated;
+            invoice.GeneratedAtUtc = DateTimeOffset.UtcNow;
+            invoice.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
-        return invoice;
+            _dbContext.Invoices.Update(invoice);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            InvoiceServiceLog.Succeeded(_logger, nameof(GenerateAsync), invoiceId);
+
+            return invoice;
+        }
+        catch (Exception ex)
+        {
+            InvoiceServiceLog.Failed(_logger, ex, nameof(GenerateAsync), invoiceId);
+            throw;
+        }
     }
 
     private async Task<Invoice> LoadInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken)

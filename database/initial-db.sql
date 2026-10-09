@@ -143,7 +143,7 @@ IF NOT EXISTS (
 BEGIN
     ALTER TABLE dbo.InvoiceTemplates
         ADD CONSTRAINT FK_InvoiceTemplates_ActiveVersion
-        FOREIGN KEY (ActiveVersionId) REFERENCES dbo.InvoiceTemplateVersions (Id);
+        FOREIGN KEY (ActiveVersionId) REFERENCES dbo.InvoiceTemplateVersions (Id) ON DELETE SET NULL;
 END
 GO
 

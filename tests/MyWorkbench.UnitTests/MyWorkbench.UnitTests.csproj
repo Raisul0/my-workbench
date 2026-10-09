@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MyWorkbench.Infrastructure\MyWorkbench.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\MyWorkbench.Api\MyWorkbench.Api.csproj" />
     <ProjectReference Include="..\..\src\MyWorkbench.Shared\MyWorkbench.Shared.csproj" />
     <ProjectReference Include="..\..\src\Modules\MyWorkbench.Modules.Invoices\MyWorkbench.Modules.Invoices.csproj" />
   </ItemGroup>

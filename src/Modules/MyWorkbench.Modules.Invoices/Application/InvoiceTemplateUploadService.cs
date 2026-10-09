@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using MyWorkbench.Infrastructure;
 using MyWorkbench.Modules.Invoices.Contracts;
 using MyWorkbench.Modules.Invoices.Domain;
@@ -13,12 +14,18 @@ public sealed class InvoiceTemplateUploadService
     private readonly InvoiceDbContext _dbContext;
     private readonly IFileStorage _fileStorage;
     private readonly InvoiceTemplateService _templateService;
+    private readonly ILogger<InvoiceTemplateUploadService> _logger;
 
-    public InvoiceTemplateUploadService(InvoiceDbContext dbContext, IFileStorage fileStorage)
+    public InvoiceTemplateUploadService(
+        InvoiceDbContext dbContext,
+        IFileStorage fileStorage,
+        InvoiceTemplateService templateService,
+        ILogger<InvoiceTemplateUploadService> logger)
     {
         _dbContext = dbContext;
         _fileStorage = fileStorage;
-        _templateService = new InvoiceTemplateService(dbContext);
+        _templateService = templateService;
+        _logger = logger;
     }
 
     public async Task<InvoiceTemplate> UploadAsync(IFormFile file, CreateInvoiceTemplateRequest request, CancellationToken cancellationToken = default)
@@ -26,50 +33,63 @@ public sealed class InvoiceTemplateUploadService
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(request);
 
-        if (file.Length <= 0)
+        using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceTemplateUploadService), nameof(UploadAsync));
+        InvoiceServiceLog.Started(_logger, nameof(UploadAsync));
+
+        try
         {
-            throw new InvalidOperationException("The uploaded template file is empty.");
-        }
+            if (file.Length <= 0)
+            {
+                throw new InvalidOperationException("The uploaded template file is empty.");
+            }
 
-        if (file.Length > MaxTemplateUploadBytes)
+            if (file.Length > MaxTemplateUploadBytes)
+            {
+                throw new InvalidOperationException("The uploaded template exceeds the 20 MB size limit.");
+            }
+
+            var fileName = Path.GetFileName(file.FileName);
+            var uploadValidator = new TemplateUploadValidator();
+            if (!uploadValidator.IsAllowedSafeFileName(fileName))
+            {
+                throw new InvalidOperationException("The uploaded file name is invalid or unsafe.");
+            }
+
+            var contentTypeHeader = file.Headers is not null && file.Headers.TryGetValue("Content-Type", out var headerValue)
+                ? headerValue.ToString()
+                : null;
+
+            var detectedContentType = string.IsNullOrWhiteSpace(contentTypeHeader)
+                ? InferContentType(fileName)
+                : contentTypeHeader.Trim();
+
+            if (!uploadValidator.IsSupportedContentType(detectedContentType))
+            {
+                throw new InvalidOperationException("Unsupported file type. Use PDF, PNG, or JPG images.");
+            }
+
+            await using var stream = file.OpenReadStream();
+            await using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken);
+
+            var payload = buffer.ToArray();
+            if (!HasSupportedFileSignature(fileName, payload))
+            {
+                throw new InvalidOperationException("The uploaded file signature does not match a supported PDF or image format.");
+            }
+
+            request.SourceType = InferSourceType(fileName, request.SourceType);
+            request.SourceStorageKey = await _fileStorage.StoreAsync(new MemoryStream(payload), detectedContentType, fileName, cancellationToken);
+
+            var created = await _templateService.CreateAsync(request, cancellationToken);
+            InvoiceServiceLog.Succeeded(_logger, nameof(UploadAsync), created.Id);
+            return created;
+        }
+        catch (Exception ex)
         {
-            throw new InvalidOperationException("The uploaded template exceeds the 20 MB size limit.");
+            InvoiceServiceLog.Failed(_logger, ex, nameof(UploadAsync));
+            throw;
         }
-
-        var fileName = Path.GetFileName(file.FileName);
-        var uploadValidator = new TemplateUploadValidator();
-        if (!uploadValidator.IsAllowedSafeFileName(fileName))
-        {
-            throw new InvalidOperationException("The uploaded file name is invalid or unsafe.");
-        }
-
-        var contentTypeHeader = file.Headers is not null && file.Headers.TryGetValue("Content-Type", out var headerValue)
-            ? headerValue.ToString()
-            : null;
-
-        var detectedContentType = string.IsNullOrWhiteSpace(contentTypeHeader)
-            ? InferContentType(fileName)
-            : contentTypeHeader.Trim();
-
-        if (!uploadValidator.IsSupportedContentType(detectedContentType))
-        {
-            throw new InvalidOperationException("Unsupported file type. Use PDF, PNG, or JPG images.");
-        }
-
-        await using var stream = file.OpenReadStream();
-        await using var buffer = new MemoryStream();
-        await stream.CopyToAsync(buffer, cancellationToken);
-
-        var payload = buffer.ToArray();
-        if (!HasSupportedFileSignature(fileName, payload))
-        {
-            throw new InvalidOperationException("The uploaded file signature does not match a supported PDF or image format.");
-        }
-
-        request.SourceType = InferSourceType(fileName, request.SourceType);
-        request.SourceStorageKey = await _fileStorage.StoreAsync(new MemoryStream(payload), detectedContentType, fileName, cancellationToken);
-
-        return await _templateService.CreateAsync(request, cancellationToken);
     }
 
     private static TemplateSourceType InferSourceType(string fileName, TemplateSourceType requestedType)

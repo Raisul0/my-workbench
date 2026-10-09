@@ -17,6 +17,7 @@ public static class InvoiceEndpoints
 
         group.MapGet("/settings", async (InvoiceDraftService service, CancellationToken cancellationToken) =>
         {
+
             var profile = await service.GetSettingsAsync(cancellationToken);
             return Results.Ok(new
             {
