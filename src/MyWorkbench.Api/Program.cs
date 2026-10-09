@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using MyWorkbench.Modules.Invoices;
+using MyWorkbench.Modules.Invoices.Persistence;
 using MyWorkbench.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +24,12 @@ var invoiceEnabled = builder.Configuration.GetValue("Modules:Invoices:Enabled", 
 builder.Services.AddInvoicesModule(builder.Configuration, invoiceEnabled);
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<InvoiceDbContext>();
+    db.Database.EnsureCreated();
+}
 
 if (app.Environment.IsDevelopment())
 {
