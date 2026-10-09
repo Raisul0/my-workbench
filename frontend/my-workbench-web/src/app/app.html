@@ -1,0 +1,24 @@
+﻿<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">M</span>
+      <span>My Workbench</span>
+    </div>
+
+    <nav class="nav" aria-label="Main navigation">
+      <a
+        *ngFor="let item of navItems"
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: item.path === '/' }"
+      >
+        <span class="icon">{{ item.icon }}</span>
+        <span>{{ item.label }}</span>
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main-panel">
+    <router-outlet />
+  </main>
+</div>

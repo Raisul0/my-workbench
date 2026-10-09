@@ -1,0 +1,23 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Angular / Node
+node_modules/
+frontend/**/dist/
+frontend/**/.angular/
+
+# IDE
+.vs/
+.vscode/
+
+# Local secrets
+appsettings.Local.json
+secrets.json

@@ -1,0 +1,89 @@
+:host {
+  display: block;
+  height: 100vh;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  color: #0f172a;
+  font-family: Inter, 'Segoe UI', sans-serif;
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 260px;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 1.5rem 1rem;
+  box-shadow: 4px 0 20px rgba(15, 23, 42, 0.12);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 0.5rem 0.75rem 1.5rem;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  color: white;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 0.8rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  transition: 0.2s ease-in-out;
+}
+
+.nav a:hover,
+.nav a.active {
+  background: rgba(148, 163, 184, 0.14);
+  color: #ffffff;
+}
+
+.icon {
+  display: inline-flex;
+  width: 1.5rem;
+  justify-content: center;
+}
+
+.main-panel {
+  flex: 1;
+  padding: 2rem 2rem 3rem;
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    padding-bottom: 1rem;
+  }
+
+  .main-panel {
+    padding: 1.25rem;
+  }
+}

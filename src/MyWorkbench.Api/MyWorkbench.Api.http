@@ -1,0 +1,6 @@
+@MyWorkbench.Api_HostAddress = http://localhost:5109
+
+GET {{MyWorkbench.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
