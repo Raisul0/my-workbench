@@ -2,6 +2,7 @@ namespace MyWorkbench.Modules.Invoices.Contracts;
 
 public sealed class CreateInvoiceDraftRequest
 {
+    public Guid? BusinessProfileId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerAddress { get; set; } = string.Empty;
     public string CustomerEmail { get; set; } = string.Empty;
@@ -13,6 +14,7 @@ public sealed class CreateInvoiceDraftRequest
     public string CurrencyCode { get; set; } = "USD";
     public DateOnly IssueDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     public DateOnly? DueDate { get; set; }
+    public List<string> LineItemColumns { get; set; } = new();
     public List<CreateInvoiceLineItemRequest> LineItems { get; set; } = new();
 }
 

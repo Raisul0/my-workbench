@@ -24,21 +24,8 @@ public class InvoiceDraftService
 
         try
         {
-            var profile = await _dbContext.BusinessProfiles
-                .OrderBy(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (profile is not null)
-            {
-                InvoiceServiceLog.Succeeded(_logger, nameof(GetSettingsAsync), profile.Id);
-                return profile;
-            }
-
-            profile = new BusinessProfile();
-            _dbContext.BusinessProfiles.Add(profile);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            var profile = await ResolveBusinessProfileAsync(null, cancellationToken);
             InvoiceServiceLog.Succeeded(_logger, nameof(GetSettingsAsync), profile.Id);
-
             return profile;
         }
         catch (Exception ex)
@@ -57,12 +44,15 @@ public class InvoiceDraftService
 
         try
         {
-            var profile = await GetSettingsAsync(cancellationToken);
+            var profile = await ResolveBusinessProfileAsync(request.BusinessProfileId, cancellationToken);
 
             if (request.LineItems.Count == 0)
             {
                 throw new InvalidOperationException("At least one line item is required.");
             }
+
+            var orderedColumns = ResolveLineItemColumns(request.LineItemColumns ?? [], profile);
+            var columnsCsv = InvoiceLineItemColumnCatalog.Serialize(orderedColumns);
 
             var lineItems = request.LineItems
                 .Select((line, index) => new InvoiceLineItem
@@ -80,6 +70,7 @@ public class InvoiceDraftService
             var totals = InvoiceTotalsCalculator.Calculate(lineItems);
             var invoice = new Invoice
             {
+                BusinessProfileId = profile.Id,
                 InvoiceNumber = InvoiceNumberAllocator.NextNumber(profile),
                 Status = InvoiceStatus.Draft,
                 CurrencyCode = string.IsNullOrWhiteSpace(request.CurrencyCode) ? profile.DefaultCurrencyCode : request.CurrencyCode,
@@ -97,6 +88,7 @@ public class InvoiceDraftService
                 CustomerTaxNumber = request.CustomerTaxNumber,
                 Notes = request.Notes,
                 Terms = string.IsNullOrWhiteSpace(request.Terms) ? profile.DefaultTerms : request.Terms,
+                LineItemColumnsCsv = columnsCsv,
                 IssueDate = request.IssueDate,
                 DueDate = request.DueDate,
                 Subtotal = totals.Subtotal,
@@ -144,5 +136,64 @@ public class InvoiceDraftService
             InvoiceServiceLog.Failed(_logger, ex, nameof(ListAsync));
             throw;
         }
+    }
+
+    private async Task<BusinessProfile> ResolveBusinessProfileAsync(Guid? businessProfileId, CancellationToken cancellationToken)
+    {
+        if (businessProfileId.HasValue)
+        {
+            var selected = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(x => x.Id == businessProfileId.Value, cancellationToken);
+            if (selected is null)
+            {
+                throw new InvalidOperationException("The selected business profile was not found.");
+            }
+
+            return selected;
+        }
+
+        var defaultProfile = await _dbContext.BusinessProfiles
+            .OrderBy(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (defaultProfile is not null)
+        {
+            return defaultProfile;
+        }
+
+        defaultProfile = new BusinessProfile();
+        _dbContext.BusinessProfiles.Add(defaultProfile);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return defaultProfile;
+    }
+
+    private IReadOnlyList<string> ResolveLineItemColumns(IReadOnlyCollection<string> requestedColumns, BusinessProfile profile)
+    {
+        if (requestedColumns.Count == 0)
+        {
+            return InvoiceLineItemColumnCatalog.ParseOrDefault(profile.LineItemColumnsCsv);
+        }
+
+        var normalizedColumns = new List<string>(requestedColumns.Count);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var requested in requestedColumns)
+        {
+            if (!InvoiceLineItemColumnCatalog.TryNormalize(requested, out var normalized))
+            {
+                throw new InvalidOperationException($"Unsupported line item column '{requested}'.");
+            }
+
+            if (!seen.Add(normalized))
+            {
+                throw new InvalidOperationException($"Line item column '{requested}' is duplicated.");
+            }
+
+            normalizedColumns.Add(normalized);
+        }
+
+        profile.LineItemColumnsCsv = InvoiceLineItemColumnCatalog.Serialize(normalizedColumns);
+        profile.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+        return normalizedColumns;
     }
 }

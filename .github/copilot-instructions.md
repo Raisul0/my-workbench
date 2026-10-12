@@ -9,10 +9,44 @@ Use `docs/specification.md` as the product and architecture source of truth. Rea
 ## Architecture constraints
 - Use C# / .NET 10 / ASP.NET Core Web API for the backend.
 - Use exactly one Angular frontend project named `my-workbench-web`.
-- Each implemented business module has a separate backend `.csproj` and its own feature folder under `frontend/my-workbench-web/src/app/modules/`.
+- Each implemented business module has a separate backend `.csproj` and its own feature folder under `src/my-workbench-web/src/app/modules/`.
 - Use a modular monolith. Do not add microservices, separate API hosts, or separate frontend projects by default.
 - Keep module domain models, application logic, persistence, endpoints, and tests within their owning module. Avoid cross-module DbContext/entity coupling and circular project references.
 - Register modules explicitly. The API may return metadata for locally compiled/allow-listed modules, but must never load arbitrary runtime code or frontend import paths from API data.
+
+## Frontend module structure
+Each module in `app/modules/[ModuleName]/` must follow this folder structure:
+```
+app/modules/[ModuleName]/
+├── pages/
+│   ├── home/
+│   │   ├── [module-name]-home.component.ts
+│   │   ├── [module-name]-home.component.html
+│   │   ├── [module-name]-home.component.scss
+│   │   └── [module-name]-home.component.spec.ts
+│   ├── detail/
+│   │   ├── [module-name]-detail.component.ts
+│   │   ├── [module-name]-detail.component.html
+│   │   ├── [module-name]-detail.component.scss
+│   │   └── [module-name]-detail.component.spec.ts
+│   └── [other-pages]/
+├── models/
+│   ├── [entity-name].model.ts
+│   ├── [request-dto].model.ts
+│   └── [response-dto].model.ts
+├── services/
+│   ├── [module-name].api.service.ts
+│   ├── [module-name].data.service.ts
+│   └── index.ts (barrel export)
+└── [module-name].module.ts
+```
+- Each page component gets its own folder under `pages/` with .ts, .html, .scss, and .spec.ts files
+- Use consistent naming: `[module-name]-[page-name].component.*`
+- Models (interfaces/types) go in `models/` folder
+- API and business logic services go in `services/` folder
+- Use barrel exports (index.ts) in `services/` and `models/` for convenient imports
+- Shared services extend the `ApiService` base class from `@shared/services`
+- Do NOT create unnecessary guide/documentation files for services; inline JSDoc comments are sufficient
 
 ## Engineering standards
 - Inspect repository state, SDK versions, existing conventions, and git changes before implementation. Preserve existing work.

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <NoDefaultItems>true</NoDefaultItems>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IsPackable>false</IsPackable>
+    <NpmCommand Condition="'$(OS)' == 'Windows_NT'">cmd /c npm</NpmCommand>
+    <NpmCommand Condition="'$(OS)' != 'Windows_NT'">npm</NpmCommand>
+    <AngularConfiguration Condition="'$(Configuration)' == 'Release'">production</AngularConfiguration>
+    <AngularConfiguration Condition="'$(AngularConfiguration)' == ''">development</AngularConfiguration>
+  </PropertyGroup>
+
+  <Target Name="RestoreNodeModules" BeforeTargets="Build">
+    <Exec Command="$(NpmCommand) ci" WorkingDirectory="$(MSBuildProjectDirectory)" Condition="!Exists('$(MSBuildProjectDirectory)\node_modules\package-lock.json')" />
+  </Target>
+
+  <Target Name="BuildAngularApp" BeforeTargets="Build">
+    <Exec Command="$(NpmCommand) run build -- --configuration $(AngularConfiguration)" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+</Project>

@@ -27,6 +27,7 @@ public class InvoiceDbContext : DbContext
             entity.Property(x => x.DefaultCurrencyCode).HasMaxLength(8);
             entity.Property(x => x.IssuerName).HasMaxLength(200);
             entity.Property(x => x.DefaultTerms).HasMaxLength(4000);
+            entity.Property(x => x.LineItemColumnsCsv).HasMaxLength(256);
             entity.Property(x => x.DefaultTaxRate).HasPrecision(18, 4);
         });
 
@@ -35,7 +36,9 @@ public class InvoiceDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.InvoiceNumber).HasMaxLength(64);
             entity.HasIndex(x => x.InvoiceNumber).IsUnique();
+            entity.HasIndex(x => x.BusinessProfileId);
             entity.Property(x => x.CurrencyCode).HasMaxLength(8);
+            entity.Property(x => x.LineItemColumnsCsv).HasMaxLength(256);
             entity.Property(x => x.Subtotal).HasPrecision(18, 4);
             entity.Property(x => x.DiscountTotal).HasPrecision(18, 4);
             entity.Property(x => x.TaxTotal).HasPrecision(18, 4);

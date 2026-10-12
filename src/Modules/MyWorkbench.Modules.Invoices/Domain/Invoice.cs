@@ -3,6 +3,7 @@ namespace MyWorkbench.Modules.Invoices.Domain;
 public class Invoice
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid BusinessProfileId { get; set; }
     public string InvoiceNumber { get; set; } = string.Empty;
     public InvoiceStatus Status { get; set; } = InvoiceStatus.Draft;
     public Guid TemplateVersionId { get; set; }
@@ -23,6 +24,7 @@ public class Invoice
     public string CustomerTaxNumber { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public string Terms { get; set; } = string.Empty;
+    public string LineItemColumnsCsv { get; set; } = string.Join(',', InvoiceLineItemColumnCatalog.DefaultOrderedColumns);
     public decimal Subtotal { get; set; }
     public decimal DiscountTotal { get; set; }
     public decimal TaxTotal { get; set; }

@@ -14,7 +14,7 @@ The repository is in the verified invoice MVP state, with the Phase 6 hardening 
 4. Create the module's database schema/context/migrations within its owning backend project. Keep other modules from directly using its DbContext or entity types.
 5. Add a module registration method and register it explicitly from `MyWorkbench.Api`.
 6. Add a module descriptor with a stable ID, user-facing name, description, allow-listed icon, local route path, API prefix, enabled state, and sort order.
-7. Add the user interface under `frontend/my-workbench-web/src/app/modules/<module-id>/`. This is a feature folder in the existing Angular project, not a second application.
+7. Add the user interface under `src/my-workbench-web/src/app/modules/<module-id>/`. This is a feature folder in the existing Angular project, not a second application.
 8. Add lazy-loaded, typed routes, API services, validation, loading/empty/error states, and accessible UI. Do not put business rules only in the browser.
 9. Add unit, integration, frontend, and end-to-end tests for business rules and key user journeys.
 10. Add only explicit cross-module contracts if required. Use stable IDs and avoid circular project references.
@@ -27,7 +27,7 @@ Use the current project checks as the baseline before introducing a new module:
 
 ```bash
 dotnet test MyWorkbench.sln --nologo
-cd frontend/my-workbench-web
+cd src/my-workbench-web
 npm run build -- --configuration development
 ```
 

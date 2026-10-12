@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using System.Collections;
 using Microsoft.Extensions.Configuration;
@@ -299,10 +299,36 @@ public class TemplateVersioningTests
             SelectedPdfPageNumber = 1
         };
 
-        var bytes = await renderer.RenderPreviewAsync(version, new { companyName = "Acme" });
+        var invoice = new Invoice
+        {
+            CustomerName = "Acme",
+            CurrencyCode = "USD",
+            LineItemColumnsCsv = "client,description,total",
+            LineItems =
+            [
+                new InvoiceLineItem
+                {
+                    Description = "Consulting",
+                    Quantity = 2m,
+                    UnitPrice = 100m,
+                    LineTotal = 200m
+                }
+            ]
+        };
+
+        var bytes = await renderer.RenderPreviewAsync(version, invoice);
+        var html = System.Text.Encoding.UTF8.GetString(bytes);
 
         Assert.NotEmpty(bytes);
-        Assert.StartsWith("%PDF", System.Text.Encoding.ASCII.GetString(bytes.Take(4).ToArray()));
+        Assert.StartsWith("<!DOCTYPE", html);
+
+        var clientHeaderPosition = html.IndexOf("<th>Client</th>", StringComparison.Ordinal);
+        var descriptionHeaderPosition = html.IndexOf("<th>Description</th>", StringComparison.Ordinal);
+        var totalHeaderPosition = html.IndexOf("<th style=\"text-align: right;\">Total</th>", StringComparison.Ordinal);
+
+        Assert.True(clientHeaderPosition >= 0);
+        Assert.True(descriptionHeaderPosition > clientHeaderPosition);
+        Assert.True(totalHeaderPosition > descriptionHeaderPosition);
     }
 }
 
@@ -357,5 +383,72 @@ public class InvoiceGenerationTests
         Assert.False(string.IsNullOrWhiteSpace(generated.PdfStorageKey));
         Assert.False(string.IsNullOrWhiteSpace(generated.PdfSha256));
         Assert.NotNull(await storage.OpenReadAsync(generated.PdfStorageKey!));
+    }
+
+    [Fact]
+    public async Task CreateDraft_ShouldUseSelectedProfileAndPersistOrderedColumns()
+    {
+        var options = new DbContextOptionsBuilder<InvoiceDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new InvoiceDbContext(options);
+
+        var firstProfile = new BusinessProfile
+        {
+            IssuerName = "Profile A",
+            InvoicePrefix = "A",
+            LineItemColumnsCsv = "description,total"
+        };
+
+        var secondProfile = new BusinessProfile
+        {
+            IssuerName = "Profile B",
+            InvoicePrefix = "B",
+            LineItemColumnsCsv = "description,total"
+        };
+
+        dbContext.BusinessProfiles.AddRange(firstProfile, secondProfile);
+        await dbContext.SaveChangesAsync();
+
+        var draftService = new InvoiceDraftService(dbContext, NullLogger<InvoiceDraftService>.Instance);
+
+        var invoice = await draftService.CreateDraftAsync(new CreateInvoiceDraftRequest
+        {
+            BusinessProfileId = secondProfile.Id,
+            CustomerName = "Northwind",
+            LineItemColumns = new List<string> { "Client", "Description", "Total" },
+            LineItems = new List<CreateInvoiceLineItemRequest>
+            {
+                new() { Description = "Development", Quantity = 5m, UnitPrice = 80m, DiscountPercent = 0m, TaxRate = 0m }
+            }
+        });
+
+        Assert.Equal(secondProfile.Id, invoice.BusinessProfileId);
+        Assert.Equal("client,description,total", invoice.LineItemColumnsCsv);
+
+        var updatedProfile = await dbContext.BusinessProfiles.SingleAsync(x => x.Id == secondProfile.Id);
+        Assert.Equal("client,description,total", updatedProfile.LineItemColumnsCsv);
+    }
+
+    [Fact]
+    public async Task CreateDraft_ShouldRejectUnsupportedLineItemColumn()
+    {
+        var options = new DbContextOptionsBuilder<InvoiceDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new InvoiceDbContext(options);
+        var draftService = new InvoiceDraftService(dbContext, NullLogger<InvoiceDraftService>.Instance);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => draftService.CreateDraftAsync(new CreateInvoiceDraftRequest
+        {
+            CustomerName = "Tailspin",
+            LineItemColumns = new List<string> { "Description", "UnknownField" },
+            LineItems = new List<CreateInvoiceLineItemRequest>
+            {
+                new() { Description = "Support", Quantity = 1m, UnitPrice = 50m, DiscountPercent = 0m, TaxRate = 0m }
+            }
+        }));
     }
 }

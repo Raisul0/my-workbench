@@ -1,0 +1,258 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Module</p>
+    <h1>Invoices</h1>
+  </div>
+  <button class="primary-button" type="button" (click)="toggleCreateForm()">
+    {{ showCreateForm ? 'Close' : 'Create draft' }}
+  </button>
+</section>
+
+@if (showCreateForm) {
+  <form class="panel form-panel" [formGroup]="draftForm" (ngSubmit)="submitDraft()">
+    <div class="panel-header">
+      <h2>New draft invoice</h2>
+    </div>
+
+    <div class="form-grid">
+      <label>
+        Customer name
+        <input formControlName="customerName" placeholder="Acme Ltd" />
+      </label>
+
+      <label>
+        Currency
+        <select formControlName="currencyCode">
+          <option value="USD">USD</option>
+          <option value="MYR">MYR</option>
+          <option value="SGD">SGD</option>
+        </select>
+      </label>
+
+      <label>
+        Issue date
+        <input type="date" formControlName="issueDate" />
+      </label>
+
+      <label>
+        Customer email
+        <input formControlName="customerEmail" type="email" placeholder="billing@acme.com" />
+      </label>
+
+      <label class="wide-field">
+        Customer address
+        <textarea formControlName="customerAddress" rows="2" placeholder="123 Market Street"></textarea>
+      </label>
+    </div>
+
+    <div class="line-items-header">
+      <h3>Line items</h3>
+      <button type="button" class="secondary-button" (click)="addLineItem()">Add line</button>
+    </div>
+
+    <div class="line-items" formArrayName="lineItems">
+      @for (lineItem of lineItems.controls; track $index; let index = $index) {
+        <div class="line-item" [formGroupName]="index">
+          <input formControlName="description" placeholder="Description" />
+          <input formControlName="quantity" type="number" min="1" step="0.01" placeholder="Qty" />
+          <input formControlName="unitPrice" type="number" min="0" step="0.01" placeholder="Unit price" />
+          <input formControlName="discountPercent" type="number" min="0" step="0.01" placeholder="Discount %" />
+          <input formControlName="taxRate" type="number" min="0" step="0.01" placeholder="Tax %" />
+          <button type="button" class="danger-button" (click)="removeLineItem(index)">Remove</button>
+        </div>
+      }
+    </div>
+
+    @if (draftErrorMessage) {
+      <p class="error">{{ draftErrorMessage }}</p>
+    }
+
+    @if (draftSuccessMessage) {
+      <p class="success">{{ draftSuccessMessage }}</p>
+    }
+
+    <div class="form-actions">
+      <button type="button" class="secondary-button" (click)="toggleCreateForm()">Cancel</button>
+      <button type="submit" class="primary-button" [disabled]="draftForm.invalid || submittingDraft">
+        {{ submittingDraft ? 'Saving…' : 'Save draft' }}
+      </button>
+    </div>
+  </form>
+}
+
+@if (selectedInvoice) {
+  <div class="panel selected-panel">
+    <div class="toolbar">
+      <h2>Selected invoice</h2>
+      <span class="badge">{{ selectedInvoice.status }}</span>
+    </div>
+
+    <div class="selected-invoice-card">
+      <div>
+        <p class="invoice-number">{{ selectedInvoice.invoiceNumber }}</p>
+        <p class="customer-name">{{ selectedInvoice.customerName || 'Unassigned customer' }}</p>
+      </div>
+
+      <div class="meta-block">
+        <span>{{ selectedInvoice.issueDate ? (selectedInvoice.issueDate | date: 'mediumDate') : 'No issue date' }}</span>
+        <span>{{ selectedInvoice.currencyCode || 'USD' }}</span>
+      </div>
+
+      <div class="amount-block">
+        <span class="amount">{{ selectedInvoice.grandTotal | currency: selectedInvoice.currencyCode || 'USD' }}</span>
+        <small>{{ selectedInvoice.status }}</small>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button type="button" class="secondary-button" (click)="previewInvoice(selectedInvoice.id)" [disabled]="previewingInvoice">
+        {{ previewingInvoice ? 'Opening…' : 'Preview PDF' }}
+      </button>
+      <button type="button" class="primary-button" (click)="generateInvoice(selectedInvoice.id)" [disabled]="generatingInvoice">
+        {{ generatingInvoice ? 'Generating…' : 'Generate invoice' }}
+      </button>
+    </div>
+
+    @if (actionMessage) {
+      <p class="success">{{ actionMessage }}</p>
+    }
+  </div>
+}
+
+<div class="panel settings-panel">
+  <div class="toolbar">
+    <h2>Invoice settings</h2>
+    <span class="badge">Profile</span>
+  </div>
+
+  @if (settings) {
+    <div class="settings-grid">
+      <div>
+        <p class="muted">Issuer</p>
+        <p class="invoice-number">{{ settings.issuerName }}</p>
+      </div>
+      <div>
+        <p class="muted">Default currency</p>
+        <p class="invoice-number">{{ settings.defaultCurrencyCode }}</p>
+      </div>
+      <div>
+        <p class="muted">Next invoice number</p>
+        <p class="invoice-number">{{ settings.invoicePrefix }}{{ settings.nextSequence }}</p>
+      </div>
+      <div>
+        <p class="muted">Default tax</p>
+        <p class="invoice-number">{{ settings.defaultTaxRate }}%</p>
+      </div>
+    </div>
+  } @else {
+    <p class="muted">Loading invoice profile…</p>
+  }
+</div>
+
+<div class="panel template-panel">
+  <div class="toolbar">
+    <h2>Template library</h2>
+    <span class="badge">{{ templates.length }} templates</span>
+  </div>
+
+  <form class="template-upload" (ngSubmit)="uploadTemplate()">
+    <label>
+      Template name
+      <input [(ngModel)]="templateName" name="templateName" placeholder="Client invoice template" />
+    </label>
+
+    <label>
+      Description
+      <input [(ngModel)]="templateDescription" name="templateDescription" placeholder="Quarterly standard billing template" />
+    </label>
+
+    <label>
+      Source file
+      <input type="file" accept=".pdf,image/png,image/jpeg" (change)="onTemplateFileChange($event)" />
+    </label>
+
+    <div class="form-actions template-actions">
+      <button type="submit" class="primary-button" [disabled]="uploadingTemplate || !selectedTemplateFile">
+        {{ uploadingTemplate ? 'Uploading…' : 'Upload template' }}
+      </button>
+    </div>
+  </form>
+
+  @if (templateUploadError) {
+    <p class="error">{{ templateUploadError }}</p>
+  }
+
+  @if (templateUploadSuccess) {
+    <p class="success">{{ templateUploadSuccess }}</p>
+  }
+
+  @if (templates.length === 0) {
+    <p class="muted">No templates uploaded yet.</p>
+  } @else {
+    <div class="template-list" role="list">
+      @for (template of templates; track template.id) {
+        <button type="button" class="template-item" role="listitem" [class.selected-template-item]="selectedTemplate?.id === template.id" (click)="selectTemplate(template)">
+          <div>
+            <p class="invoice-number">{{ template.name }}</p>
+            <p class="customer-name">{{ template.description || 'No description' }}</p>
+          </div>
+
+          <div class="meta-block">
+            <span class="status-chip">{{ template.activeVersion?.sourceType || 'unknown' }}</span>
+            <span>v{{ template.activeVersion?.versionNumber ?? 1 }}</span>
+          </div>
+        </button>
+      }
+    </div>
+  }
+</div>
+
+<!-- Template editor hidden for now -->
+
+@if (htmlPreviewUrl) {
+  <div class="preview-modal-overlay" (click)="closeHtmlPreview()">
+    <div class="preview-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Invoice Preview</h2>
+        <button type="button" class="close-button" (click)="closeHtmlPreview()">✕</button>
+      </div>
+      <iframe class="preview-frame" [src]="htmlPreviewUrl"></iframe>
+    </div>
+  </div>
+}
+
+<div class="panel">
+  <div class="toolbar">
+    <h2>Recent invoices</h2>
+    <span class="badge">{{ invoices.length }} total</span>
+  </div>
+
+  @if (loading) {
+    <p class="muted">Loading invoices…</p>
+  } @else if (errorMessage) {
+    <p class="error">{{ errorMessage }}</p>
+  } @else if (invoices.length === 0) {
+    <p class="muted">No invoices yet. Create your first draft to get started.</p>
+  } @else {
+    <div class="invoice-list" role="list">
+      @for (invoice of invoices; track invoice.id) {
+        <article class="invoice-card" role="listitem" [class.selected-card]="selectedInvoice?.id === invoice.id" (click)="selectInvoice(invoice)">
+          <div>
+            <p class="invoice-number">{{ invoice.invoiceNumber }}</p>
+            <p class="customer-name">{{ invoice.customerName || 'Unassigned customer' }}</p>
+          </div>
+
+          <div class="meta-block">
+            <span class="status-chip">{{ invoice.status }}</span>
+            <span>{{ invoice.issueDate | date: 'mediumDate' }}</span>
+          </div>
+
+          <div class="amount-block">
+            <span class="amount">{{ invoice.grandTotal | currency: invoice.currencyCode || 'USD' }}</span>
+            <small>{{ invoice.currencyCode || 'USD' }}</small>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>

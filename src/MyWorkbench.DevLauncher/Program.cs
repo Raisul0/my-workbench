@@ -12,7 +12,7 @@ internal static class Program
 
         var repoRoot = FindRepoRoot();
         var backendProject = Path.Combine(repoRoot, "src", "MyWorkbench.Api", "MyWorkbench.Api.csproj");
-        var frontendDirectory = Path.Combine(repoRoot, "frontend", "my-workbench-web");
+        var frontendDirectory = Path.Combine(repoRoot, "src", "my-workbench-web");
 
         if (!File.Exists(backendProject))
         {

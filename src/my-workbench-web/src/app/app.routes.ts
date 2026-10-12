@@ -10,7 +10,7 @@ export const routes: Routes = [
   {
     path: 'invoices',
     loadComponent: () =>
-      import('./modules/invoices/invoices-page/invoices-page').then(
+      import('./modules/invoices/pages/home/invoices-home.component').then(
         (m) => m.InvoicesPageComponent,
       ),
     title: 'Invoices',

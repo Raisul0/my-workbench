@@ -7,7 +7,7 @@ One place to manage your work, build your business, and automate your life.
 This repository is in the verified Phase 6 hardening state for the invoice MVP. The current implementation includes:
 
 - a .NET 10 ASP.NET Core API host with explicit module registration and secure auth shell
-- a single Angular frontend project at `frontend/my-workbench-web`
+- a single Angular frontend project at `src/my-workbench-web`
 - a module registry that exposes only enabled, allow-listed modules
 - an invoice module with invoice drafts, line items, settings, template upload, layout binding, preview, and PDF generation
 - server-side invoice numbering, totals, validation, file storage, template versioning, and private document handling
@@ -48,7 +48,7 @@ Open the solution and set `MyWorkbench.Api` as the startup project.
 From a terminal in the repo root:
 
 ```bash
-cd frontend/my-workbench-web
+cd src/my-workbench-web
 npm install
 npm start
 ```
@@ -72,7 +72,7 @@ dotnet test MyWorkbench.sln --nologo
 ### Frontend verification
 
 ```bash
-cd frontend/my-workbench-web
+cd src/my-workbench-web
 npm run build -- --configuration development
 ```
 
@@ -89,7 +89,7 @@ The current project state has been validated with fresh commands:
 - `src/MyWorkbench.Shared` — shared module contract types and module metadata
 - `src/MyWorkbench.Infrastructure` — shared infrastructure plumbing and storage conventions
 - `src/Modules/MyWorkbench.Modules.Invoices` — invoice domain, application logic, persistence, endpoints, and PDF rendering integration
-- `frontend/my-workbench-web` — the only Angular application in the repo
+- `src/my-workbench-web` — the only Angular application in the repo
 - `tests/MyWorkbench.UnitTests` — validation for invoice and module rules
 
 ## Architecture notes

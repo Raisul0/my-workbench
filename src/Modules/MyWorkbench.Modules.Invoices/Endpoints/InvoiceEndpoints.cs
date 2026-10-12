@@ -27,7 +27,8 @@ public static class InvoiceEndpoints
                 profile.InvoicePrefix,
                 profile.NextSequence,
                 profile.DefaultTaxRate,
-                profile.DefaultTerms
+                profile.DefaultTerms,
+                LineItemColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(profile.LineItemColumnsCsv)
             });
         });
 
@@ -67,10 +68,12 @@ public static class InvoiceEndpoints
             return Results.Ok(new
             {
                 invoice.Id,
+                invoice.BusinessProfileId,
                 invoice.InvoiceNumber,
                 invoice.Status,
                 invoice.GrandTotal,
-                invoice.CreatedAtUtc
+                invoice.CreatedAtUtc,
+                LineItemColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(invoice.LineItemColumnsCsv)
             });
         });
 
