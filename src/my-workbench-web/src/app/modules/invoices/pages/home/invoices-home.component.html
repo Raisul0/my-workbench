@@ -3,9 +3,14 @@
     <p class="eyebrow">Module</p>
     <h1>Invoices</h1>
   </div>
-  <button class="primary-button" type="button" (click)="toggleCreateForm()">
-    {{ showCreateForm ? 'Close' : 'Create draft' }}
-  </button>
+  <div class="button-group">
+    <button class="primary-button" type="button" (click)="toggleCreateForm()">
+      {{ showCreateForm ? 'Close' : 'Create draft' }}
+    </button>
+    <button class="secondary-button" type="button" (click)="openProfileForm()">
+      Edit & Add Business Profile
+    </button>
+  </div>
 </section>
 
 @if (showCreateForm) {
@@ -15,6 +20,19 @@
     </div>
 
     <div class="form-grid">
+      <label>
+        Business Profile
+        <select (change)="onProfileSelected(settings)" [disabled]="!settings">
+          <option [value]="null" [selected]="!selectedProfile">Select a profile</option>
+          @if (settings) {
+            <option [ngValue]="settings">{{ settings.issuerName }}</option>
+          }
+        </select>
+        @if (!selectedProfile) {
+          <small style="color: #999;">Select a profile to configure line item columns</small>
+        }
+      </label>
+
       <label>
         Customer name
         <input formControlName="customerName" placeholder="Acme Ltd" />
@@ -47,21 +65,50 @@
 
     <div class="line-items-header">
       <h3>Line items</h3>
-      <button type="button" class="secondary-button" (click)="addLineItem()">Add line</button>
-    </div>
-
-    <div class="line-items" formArrayName="lineItems">
-      @for (lineItem of lineItems.controls; track $index; let index = $index) {
-        <div class="line-item" [formGroupName]="index">
-          <input formControlName="description" placeholder="Description" />
-          <input formControlName="quantity" type="number" min="1" step="0.01" placeholder="Qty" />
-          <input formControlName="unitPrice" type="number" min="0" step="0.01" placeholder="Unit price" />
-          <input formControlName="discountPercent" type="number" min="0" step="0.01" placeholder="Discount %" />
-          <input formControlName="taxRate" type="number" min="0" step="0.01" placeholder="Tax %" />
-          <button type="button" class="danger-button" (click)="removeLineItem(index)">Remove</button>
-        </div>
+      <button type="button" class="secondary-button" (click)="addLineItem()" [disabled]="!selectedProfile">Add line</button>
+      @if (!selectedProfile) {
+        <small style="color: #999;">Select a profile to add line items</small>
       }
     </div>
+
+    @if (selectedProfile && getSelectedProfileColumns().length > 0) {
+      <div class="line-items-columns-info">
+        <p class="muted">Configured columns: {{ getSelectedProfileColumns().join(', ') }}</p>
+      </div>
+
+      <div class="line-items" formArrayName="lineItems">
+        @for (lineItem of lineItems.controls; track $index; let index = $index) {
+          <div class="line-item" [formGroupName]="index">
+            @for (column of getSelectedProfileColumns(); track column) {
+              @if (getInputTypeForColumn(column) === 'date') {
+                <label>
+                  {{ lineItemColumnLabels[column] || column }}
+                  <input type="date" [formControlName]="getFormControlNameForColumn(column)" />
+                </label>
+              } @else if (getInputTypeForColumn(column) === 'decimal') {
+                <label>
+                  {{ lineItemColumnLabels[column] || column }}
+                  @if (column.toLowerCase() === 'total') {
+                    <input type="number" step="0.01" min="0" [value]="calculateTotal(lineItem)" disabled />
+                  } @else {
+                    <input type="number" step="0.01" min="0" [formControlName]="getFormControlNameForColumn(column)" />
+                  }
+                </label>
+              } @else {
+                <label>
+                  {{ lineItemColumnLabels[column] || column }}
+                  <input type="text" [formControlName]="getFormControlNameForColumn(column)" />
+                </label>
+              }
+            }
+            <button type="button" class="danger-button" (click)="removeLineItem(index)">Remove</button>
+          </div>
+        }
+      </div>
+    } @else if (selectedProfile) {
+      <p class="muted">No line item columns configured for this profile.</p>
+    }
+
 
     @if (draftErrorMessage) {
       <p class="error">{{ draftErrorMessage }}</p>
@@ -111,6 +158,9 @@
       <button type="button" class="primary-button" (click)="generateInvoice(selectedInvoice.id)" [disabled]="generatingInvoice">
         {{ generatingInvoice ? 'Generating…' : 'Generate invoice' }}
       </button>
+      <button type="button" class="danger-button" (click)="deleteInvoice(selectedInvoice.id)" [disabled]="deletingInvoice" [title]="selectedInvoice.status === 'Draft' ? 'Delete this draft invoice' : 'Cannot delete generated invoices'">
+        {{ deletingInvoice ? 'Deleting…' : 'Delete' }}
+      </button>
     </div>
 
     @if (actionMessage) {
@@ -121,32 +171,46 @@
 
 <div class="panel settings-panel">
   <div class="toolbar">
-    <h2>Invoice settings</h2>
-    <span class="badge">Profile</span>
+    <h2>Business Profiles</h2>
+    <span class="badge">{{ settingsList.length }} profiles</span>
   </div>
 
-  @if (settings) {
-    <div class="settings-grid">
-      <div>
-        <p class="muted">Issuer</p>
-        <p class="invoice-number">{{ settings.issuerName }}</p>
-      </div>
-      <div>
-        <p class="muted">Default currency</p>
-        <p class="invoice-number">{{ settings.defaultCurrencyCode }}</p>
-      </div>
-      <div>
-        <p class="muted">Next invoice number</p>
-        <p class="invoice-number">{{ settings.invoicePrefix }}{{ settings.nextSequence }}</p>
-      </div>
-      <div>
-        <p class="muted">Default tax</p>
-        <p class="invoice-number">{{ settings.defaultTaxRate }}%</p>
-      </div>
-    </div>
+  @if (settingsList.length === 0) {
+    <p class="muted">No business profiles configured yet. Create one to get started.</p>
   } @else {
-    <p class="muted">Loading invoice profile…</p>
+    <div class="profiles-list" role="list">
+      @for (profile of settingsList; track profile.id) {
+        <article class="profile-item" role="listitem" [class.selected-profile-item]="selectedProfileForEdit?.id === profile.id">
+          <button type="button" class="profile-info-button" (click)="selectProfileForEdit(profile)">
+            <div>
+              <p class="invoice-number">{{ profile.issuerName }}</p>
+              <p class="customer-name">{{ profile.issuerEmail || 'No email' }}</p>
+            </div>
+
+            <div class="meta-block">
+              <span class="status-chip">{{ profile.defaultCurrencyCode }}</span>
+              <span>{{ profile.invoicePrefix }}-{{ profile.nextSequence }}</span>
+              <span>Tax: {{ profile.defaultTaxRate }}%</span>
+            </div>
+
+            <div class="meta-block">
+              <small>Updated: {{ profile.updatedAtUtc ? (profile.updatedAtUtc | date: 'short') : 'Never' }}</small>
+            </div>
+          </button>
+
+          <button type="button" class="edit-button" (click)="selectProfileForEdit(profile)" title="Edit this profile">
+            ✎ Edit
+          </button>
+        </article>
+      }
+    </div>
   }
+
+  <div class="panel-footer">
+    <button type="button" class="primary-button" (click)="selectProfileForCreation()">
+      Create New Profile
+    </button>
+  </div>
 </div>
 
 <div class="panel template-panel">
@@ -191,17 +255,23 @@
   } @else {
     <div class="template-list" role="list">
       @for (template of templates; track template.id) {
-        <button type="button" class="template-item" role="listitem" [class.selected-template-item]="selectedTemplate?.id === template.id" (click)="selectTemplate(template)">
-          <div>
-            <p class="invoice-number">{{ template.name }}</p>
-            <p class="customer-name">{{ template.description || 'No description' }}</p>
-          </div>
+        <article class="template-item" role="listitem" [class.selected-template-item]="selectedTemplate?.id === template.id">
+          <button type="button" class="template-info-button" (click)="selectTemplate(template)">
+            <div>
+              <p class="invoice-number">{{ template.name }}</p>
+              <p class="customer-name">{{ template.description || 'No description' }}</p>
+            </div>
 
-          <div class="meta-block">
-            <span class="status-chip">{{ template.activeVersion?.sourceType || 'unknown' }}</span>
-            <span>v{{ template.activeVersion?.versionNumber ?? 1 }}</span>
-          </div>
-        </button>
+            <div class="meta-block">
+              <span class="status-chip">{{ template.activeVersion?.sourceType || 'unknown' }}</span>
+              <span>v{{ template.activeVersion?.versionNumber ?? 1 }}</span>
+            </div>
+          </button>
+
+          <button type="button" class="design-button" (click)="navigateToDesign(template)" title="Design this template">
+            ✎ Design
+          </button>
+        </article>
       }
     </div>
   }
@@ -256,3 +326,95 @@
     </div>
   }
 </div>
+
+<!-- Profile Management Modal -->
+@if (showProfileForm) {
+  <div class="modal-overlay" (click)="closeProfileForm()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ editingProfileId ? 'Edit' : 'Create New' }} Business Profile</h2>
+        <button type="button" class="close-button" (click)="closeProfileForm()">×</button>
+      </div>
+
+      <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
+        @if (profileFormError) {
+          <div class="error-message">{{ profileFormError }}</div>
+        }
+
+        @if (profileFormSuccess) {
+          <div class="success-message">{{ profileFormSuccess }}</div>
+        }
+
+        <div class="form-grid">
+          <label>
+            Issuer Name
+            <input formControlName="issuerName" placeholder="Your Company Name" required />
+          </label>
+
+          <label>
+            Issuer Email
+            <input formControlName="issuerEmail" type="email" placeholder="billing@company.com" />
+          </label>
+
+          <label>
+            Default Currency
+            <select formControlName="defaultCurrencyCode">
+              <option value="USD">USD</option>
+              <option value="MYR">MYR</option>
+              <option value="SGD">SGD</option>
+            </select>
+          </label>
+
+          <label>
+            Invoice Prefix
+            <input formControlName="invoicePrefix" placeholder="INV" />
+          </label>
+
+          <label>
+            Default Tax Rate (%)
+            <input formControlName="defaultTaxRate" type="number" step="0.01" min="0" />
+          </label>
+
+          <label>
+            Tax Label
+            <input formControlName="taxLabel" placeholder="Tax" />
+          </label>
+
+          <label class="wide-field">
+            Issuer Address
+            <textarea formControlName="issuerAddress" rows="2" placeholder="123 Business Street, City"></textarea>
+          </label>
+
+          <label>
+            Issuer Phone
+            <input formControlName="issuerPhone" type="tel" placeholder="+1 (555) 123-4567" />
+          </label>
+
+          <label>
+            Registration Number
+            <input formControlName="issuerRegistrationNumber" placeholder="ABC123456" />
+          </label>
+
+          <label>
+            Tax Number
+            <input formControlName="issuerTaxNumber" placeholder="TAX123456" />
+          </label>
+
+          <label class="wide-field">
+            Default Terms
+            <textarea formControlName="defaultTerms" rows="2" placeholder="Payment terms..."></textarea>
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="secondary-button" (click)="closeProfileForm()" [disabled]="savingProfile">
+            Cancel
+          </button>
+          <button type="submit" class="primary-button" [disabled]="savingProfile || profileForm.invalid">
+            {{ savingProfile ? 'Saving...' : (editingProfileId ? 'Update' : 'Create') }} Profile
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

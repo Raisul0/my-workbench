@@ -58,6 +58,7 @@ app/modules/[ModuleName]/
 - Add tests for every business rule and critical failure path. Run backend build/tests, Angular checks, and relevant end-to-end tests before marking a phase complete.
 - Do not report a test as passed unless the command was actually run and passed. Report failures and remaining limitations honestly.
 - Never add secrets, customer/private data, uploaded files, generated PDFs, or local database contents to source control.
+- **Do not automatically create documentation or guide files.** Only create summary/guide documents when explicitly requested by the user. Do not generate markdown files for planning, notes, or workflow tracking unless the user asks for them.
 
 ## Invoice-specific rules
 - Uploaded invoice images/PDFs are backgrounds. Users position field bindings manually; do not claim automatic layout understanding/OCR exists.

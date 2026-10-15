@@ -43,6 +43,7 @@ public class InvoiceDbContext : DbContext
             entity.Property(x => x.DiscountTotal).HasPrecision(18, 4);
             entity.Property(x => x.TaxTotal).HasPrecision(18, 4);
             entity.Property(x => x.GrandTotal).HasPrecision(18, 4);
+            entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasMany(x => x.LineItems).WithOne(x => x.Invoice).HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Cascade);
         });
 

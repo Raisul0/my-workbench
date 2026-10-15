@@ -9,14 +9,28 @@ export const routes: Routes = [
   },
   {
     path: 'invoices',
-    loadComponent: () =>
-      import('./modules/invoices/pages/home/invoices-home.component').then(
-        (m) => m.InvoicesPageComponent,
-      ),
-    title: 'Invoices',
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./modules/invoices/pages/home/invoices-home.component').then(
+            (m) => m.InvoicesPageComponent,
+          ),
+        title: 'Invoices',
+      },
+      {
+        path: 'templates/:id/design',
+        loadComponent: () =>
+          import('./modules/invoices/pages/invoices-template-design/invoices-template-design.component').then(
+            (m) => m.InvoicesTemplateDesignComponent,
+          ),
+        title: 'Design Template',
+      },
+    ],
   },
   {
     path: '**',
     redirectTo: '',
   },
 ];
+

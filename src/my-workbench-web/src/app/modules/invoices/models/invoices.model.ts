@@ -40,7 +40,8 @@ export interface InvoiceSettings {
   invoicePrefix: string;
   nextSequence: number;
   defaultTaxRate: number;
-  defaultTerms: string;
+  defaultTerms?: string;
+  lineItemColumns?: string[];
 }
 
 export interface TemplateFieldBinding {
@@ -56,6 +57,7 @@ export interface TemplateLayoutDocument {
   schemaVersion: number;
   name: string;
   fields: TemplateFieldBinding[];
+  backgroundImage?: string;
 }
 
 export interface CreateInvoiceDraftRequest {
@@ -72,3 +74,26 @@ export interface CreateInvoiceDraftRequest {
   dueDate?: string | null;
   lineItems: InvoiceDraftLineItem[];
 }
+
+export interface BusinessProfileSummary {
+  id: string;
+  issuerName: string;
+  issuerEmail?: string;
+  defaultCurrencyCode: string;
+  invoicePrefix: string;
+  nextSequence: number;
+  defaultTaxRate: number;
+  taxLabel?: string;
+  updatedAtUtc: string;
+}
+
+export interface BusinessProfileDetail extends BusinessProfileSummary {
+  issuerAddress?: string;
+  issuerPhone?: string;
+  issuerRegistrationNumber?: string;
+  issuerTaxNumber?: string;
+  defaultTerms?: string;
+  lineItemColumns?: string[];
+  createdAtUtc: string;
+}
+

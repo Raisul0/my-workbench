@@ -1,0 +1,254 @@
+<section class="page-header">
+  <div>
+    <button class="back-button" type="button" (click)="goBack()">← Back to Templates</button>
+    <p class="eyebrow">Template Design</p>
+    <h1>{{ template?.name || 'Template Designer' }}</h1>
+  </div>
+  <button class="primary-button" type="button" (click)="saveLayout()" [disabled]="savingLayout || !template">
+    {{ savingLayout ? 'Saving…' : 'Save Layout' }}
+  </button>
+</section>
+
+@if (loading) {
+  <div class="loading-container">
+    <p>Loading template…</p>
+  </div>
+}
+
+@if (errorMessage) {
+  <p class="error-panel">{{ errorMessage }}</p>
+}
+
+@if (successMessage) {
+  <p class="success-panel">{{ successMessage }}</p>
+}
+
+@if (!loading && template) {
+  <div class="template-designer-layout">
+    <!-- Left sidebar: Tools and field properties -->
+    <aside class="designer-sidebar">
+      <!-- Background section -->
+      <div class="sidebar-section">
+        <h3>Background</h3>
+        <p class="section-description">Upload a custom background image for your invoice</p>
+
+        @if (!backgroundImagePreview) {
+          <label class="file-input-label">
+            Choose Image
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              (change)="onBackgroundImageChange($event)"
+              style="display: none"
+            />
+          </label>
+        } @else {
+          <div class="background-preview">
+            <img [src]="backgroundImagePreview" alt="Background preview" />
+            <button type="button" class="danger-button" (click)="clearBackground()">Remove</button>
+          </div>
+        }
+
+        @if (backgroundUploadError) {
+          <p class="error">{{ backgroundUploadError }}</p>
+        }
+      </div>
+
+      <!-- Suggested zones section -->
+      <div class="sidebar-section">
+        <h3>Suggested Zones</h3>
+        <p class="section-description">Click to add pre-positioned field zones</p>
+
+        @for (zone of suggestedZones; track zone.id) {
+          <div class="zone-card">
+            <div class="zone-header">
+              <strong>{{ zone.name }}</strong>
+              <button type="button" class="small-button add-btn" (click)="addFieldFromZone(zone)">Add</button>
+            </div>
+            <p class="zone-description">{{ zone.description }}</p>
+          </div>
+        }
+      </div>
+
+      <!-- Add custom field section -->
+      <div class="sidebar-section">
+        <h3>Custom Fields</h3>
+        <button type="button" class="secondary-button" (click)="addField()">Add Custom Field</button>
+      </div>
+
+      <!-- Field properties section -->
+      @if (selectedFieldIndex >= 0 && fields[selectedFieldIndex]) {
+        <div class="sidebar-section selected-field-props">
+          <h3>Field Properties</h3>
+          <div class="field-property">
+            <label>
+              Field Name
+              <input
+                type="text"
+                [value]="fields[selectedFieldIndex].name"
+                (change)="updateFieldProperty(selectedFieldIndex, 'name', $any($event.target).value)"
+              />
+            </label>
+          </div>
+
+          <div class="field-property">
+            <label>
+              Type
+              <select
+                [value]="fields[selectedFieldIndex].type"
+                (change)="updateFieldProperty(selectedFieldIndex, 'type', $any($event.target).value)"
+              >
+                @for (type of fieldTypes; track type) {
+                  <option [value]="type">{{ type }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <div class="field-coordinates">
+            <label>
+              X (mm)
+              <input
+                type="number"
+                [value]="fields[selectedFieldIndex].x"
+                (change)="updateFieldProperty(selectedFieldIndex, 'x', +$any($event.target).value)"
+                step="1"
+              />
+            </label>
+            <label>
+              Y (mm)
+              <input
+                type="number"
+                [value]="fields[selectedFieldIndex].y"
+                (change)="updateFieldProperty(selectedFieldIndex, 'y', +$any($event.target).value)"
+                step="1"
+              />
+            </label>
+          </div>
+
+          <div class="field-dimensions">
+            <label>
+              Width (mm)
+              <input
+                type="number"
+                [value]="fields[selectedFieldIndex].width"
+                (change)="updateFieldProperty(selectedFieldIndex, 'width', +$any($event.target).value)"
+                step="1"
+              />
+            </label>
+            <label>
+              Height (mm)
+              <input
+                type="number"
+                [value]="fields[selectedFieldIndex].height"
+                (change)="updateFieldProperty(selectedFieldIndex, 'height', +$any($event.target).value)"
+                step="1"
+              />
+            </label>
+          </div>
+
+          <button
+            type="button"
+            class="danger-button full-width"
+            (click)="removeField(selectedFieldIndex)"
+          >
+            Delete Field
+          </button>
+        </div>
+      }
+
+      <!-- Fields list -->
+      <div class="sidebar-section">
+        <h3>Fields ({{ fields.length }})</h3>
+        @if (fields.length === 0) {
+          <p class="muted">No fields added yet</p>
+        } @else {
+          <div class="fields-list">
+            @for (field of fields; track $index; let index = $index) {
+              <button
+                type="button"
+                class="field-item"
+                [class.selected]="selectedFieldIndex === index"
+                (click)="selectField(index)"
+              >
+                <span class="field-name">{{ field.name }}</span>
+                <span class="field-type">{{ field.type }}</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </aside>
+
+    <!-- Main canvas area -->
+    <main class="designer-canvas-container">
+      <div class="canvas-toolbar">
+        <p class="canvas-info">A4 Paper (210×297mm) • {{ fields.length }} field{{ fields.length !== 1 ? 's' : '' }}</p>
+        <div class="canvas-zoom">
+          <small>Zoom: 50%</small>
+        </div>
+      </div>
+
+      <!-- Canvas with A4 paper size -->
+      <div class="canvas-wrapper">
+        <div
+          class="canvas"
+          [style.width.px]="getCanvasPixelWidth()"
+          [style.height.px]="getCanvasPixelHeight()"
+          [style.backgroundImage]="backgroundImagePreview ? 'url(' + backgroundImagePreview + ')' : 'none'"
+        >
+          <!-- Grid background -->
+          <svg class="grid-overlay" [attr.width]="getCanvasPixelWidth()" [attr.height]="getCanvasPixelHeight()">
+            <defs>
+              <pattern id="grid" [attr.width]="pixelsPerMm * 10" [attr.height]="pixelsPerMm * 10" patternUnits="userSpaceOnUse">
+                <path [attr.d]="'M ' + (pixelsPerMm * 10) + ' 0 L 0 0 0 ' + (pixelsPerMm * 10)" stroke="#e0e0e0" stroke-width="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
+
+          <!-- Field boxes -->
+          @for (field of fields; track $index; let index = $index) {
+            <div
+              class="field-box"
+              [class.selected]="selectedFieldIndex === index"
+              [style.left.px]="getFieldPixelX(field)"
+              [style.top.px]="getFieldPixelY(field)"
+              [style.width.px]="getFieldPixelWidth(field)"
+              [style.height.px]="getFieldPixelHeight(field)"
+              (click)="selectField(index)"
+            >
+              <div
+                class="field-content"
+                [style.pointerEvents]="dragState?.mode === 'move' ? 'none' : 'auto'"
+                (pointerdown)="startFieldDrag($event, index, 'move')"
+              >
+                <span class="field-label">{{ field.name }}</span>
+                <span class="field-type-badge">{{ field.type }}</span>
+              </div>
+
+              <!-- Resize handle -->
+              <div
+                class="resize-handle"
+                (pointerdown)="startFieldDrag($event, index, 'resize')"
+                title="Drag to resize"
+              ></div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Canvas legend -->
+      <div class="canvas-legend">
+        <p><strong>How to use:</strong></p>
+        <ul>
+          <li>Click on suggested zones to add pre-positioned fields</li>
+          <li>Drag fields to move them around the canvas</li>
+          <li>Use the resize handle (⊙) in the bottom-right to change size</li>
+          <li>Click a field to select and edit its properties in the sidebar</li>
+          <li>Upload a background image for your invoice design</li>
+        </ul>
+      </div>
+    </main>
+  </div>
+}

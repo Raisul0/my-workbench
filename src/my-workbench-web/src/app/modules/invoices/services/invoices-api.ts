@@ -7,7 +7,9 @@ import {
   CreateInvoiceDraftRequest,
   InvoiceSettings,
   InvoiceTemplateSummary,
-  TemplateLayoutDocument
+  TemplateLayoutDocument,
+  BusinessProfileSummary,
+  BusinessProfileDetail
 } from '../models';
 
 /**
@@ -37,8 +39,8 @@ export class InvoicesApiService extends ApiService {
   }
 
   getSettings() {
-    return this.get<InvoiceSettings>('/api/invoices/settings').pipe(
-      catchError(() => of(null))
+    return this.get<BusinessProfileSummary[]>('/api/invoices/settings').pipe(
+      catchError(() => of([] as BusinessProfileSummary[]))
     );
   }
 
@@ -87,6 +89,43 @@ export class InvoicesApiService extends ApiService {
     return this.post<{ id: string; invoiceNumber: string; status: string; grandTotal: number; pdfStorageKey: string; pdfSha256: string; generatedAtUtc: string }>(
       `/api/invoices/${invoiceId}/generate`,
       {}
+    ).pipe(
+      catchError(() => of(null))
+    );
+  }
+
+  deleteInvoice(invoiceId: string) {
+    return this.delete(`/api/invoices/${invoiceId}`).pipe(
+      catchError(() => of(null))
+    );
+  }
+
+  // Business Profile Management
+  listProfiles() {
+    return this.get<BusinessProfileSummary[]>('/api/invoices/profiles').pipe(
+      catchError(() => of([] as BusinessProfileSummary[]))
+    );
+  }
+
+  getProfile(profileId: string) {
+    return this.get<BusinessProfileDetail>(`/api/invoices/profiles/${profileId}`).pipe(
+      catchError(() => of(null))
+    );
+  }
+
+  createProfile(request: Partial<BusinessProfileDetail>) {
+    return this.post<BusinessProfileSummary>(
+      '/api/invoices/profiles',
+      request
+    ).pipe(
+      catchError(() => of(null))
+    );
+  }
+
+  updateProfile(profileId: string, request: Partial<BusinessProfileDetail>) {
+    return this.put<BusinessProfileSummary>(
+      `/api/invoices/profiles/${profileId}`,
+      request
     ).pipe(
       catchError(() => of(null))
     );

@@ -15,22 +15,14 @@ public static class InvoiceEndpoints
 
         var group = endpoints.MapGroup("/api/invoices");
 
-        group.MapGet("/settings", async (InvoiceDraftService service, CancellationToken cancellationToken) =>
-        {
+        // Business Profile Endpoints
+        group.MapGet("/profiles", GetProfiles);
+        group.MapGet("/profiles/{profileId}", GetProfileById);
+        group.MapPost("/profiles", CreateProfile);
+        group.MapPut("/profiles/{profileId}", UpdateProfile);
 
-            var profile = await service.GetSettingsAsync(cancellationToken);
-            return Results.Ok(new
-            {
-                profile.Id,
-                profile.IssuerName,
-                profile.DefaultCurrencyCode,
-                profile.InvoicePrefix,
-                profile.NextSequence,
-                profile.DefaultTaxRate,
-                profile.DefaultTerms,
-                LineItemColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(profile.LineItemColumnsCsv)
-            });
-        });
+        group.MapGet("/settings", GetSettings);
+
 
         group.MapGet("", async (InvoiceDraftService service, CancellationToken cancellationToken) =>
         {
@@ -197,7 +189,7 @@ public static class InvoiceEndpoints
             return Results.File(bytes, "application/pdf", $"{template.Name}-preview.pdf");
         });
 
-        group.MapPost("{invoiceId}/preview", async (Guid invoiceId, InvoiceGenerationService service, CancellationToken cancellationToken) =>
+        group.MapGet("{invoiceId}/preview", async (Guid invoiceId, InvoiceGenerationService service, CancellationToken cancellationToken) =>
         {
             try
             {
@@ -231,6 +223,130 @@ public static class InvoiceEndpoints
             }
         });
 
+        group.MapDelete("{invoiceId}", async (Guid invoiceId, InvoiceDraftService service, CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                await service.DeleteDraftAsync(invoiceId, cancellationToken);
+                return Results.NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        });
+
         return group;
     }
+
+    private static async Task<IResult> GetProfiles(InvoiceDraftService service, CancellationToken cancellationToken)
+    {
+        var profiles = await service.ListProfilesAsync(cancellationToken);
+        return Results.Ok(profiles.Select(profile => new
+        {
+            profile.Id,
+            profile.IssuerName,
+            profile.IssuerEmail,
+            profile.DefaultCurrencyCode,
+            profile.InvoicePrefix,
+            profile.NextSequence,
+            profile.DefaultTaxRate,
+            profile.TaxLabel,
+            profile.UpdatedAtUtc
+        }));
+    }
+
+    private static async Task<IResult> GetProfileById(Guid profileId, InvoiceDraftService service, CancellationToken cancellationToken)
+    {
+        var profile = await service.GetProfileByIdAsync(profileId, cancellationToken);
+        if (profile is null)
+        {
+            return Results.NotFound(new { message = "Business profile not found." });
+        }
+
+        return Results.Ok(new
+        {
+            profile.Id,
+            profile.IssuerName,
+            profile.IssuerAddress,
+            profile.IssuerEmail,
+            profile.IssuerPhone,
+            profile.IssuerRegistrationNumber,
+            profile.IssuerTaxNumber,
+            profile.TaxLabel,
+            profile.DefaultCurrencyCode,
+            profile.InvoicePrefix,
+            profile.NextSequence,
+            profile.DefaultTaxRate,
+            profile.DefaultTerms,
+            LineItemColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(profile.LineItemColumnsCsv),
+            profile.CreatedAtUtc,
+            profile.UpdatedAtUtc
+        });
+    }
+
+    private static async Task<IResult> CreateProfile(BusinessProfile request, InvoiceDraftService service, CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.IssuerName))
+        {
+            return Results.BadRequest(new { message = "Issuer name is required." });
+        }
+
+        try
+        {
+            var profile = await service.CreateOrUpdateProfileAsync(null, request, cancellationToken);
+            return Results.StatusCode(201);
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> UpdateProfile(Guid profileId, BusinessProfile request, InvoiceDraftService service, CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.IssuerName))
+        {
+            return Results.BadRequest(new { message = "Issuer name is required." });
+        }
+
+        try
+        {
+            var profile = await service.CreateOrUpdateProfileAsync(profileId, request, cancellationToken);
+            return Results.Ok(new
+            {
+                profile.Id,
+                profile.IssuerName,
+                profile.IssuerEmail,
+                profile.DefaultCurrencyCode,
+                profile.UpdatedAtUtc
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> GetSettings(InvoiceDraftService service, CancellationToken cancellationToken)
+    {
+        var profiles = await service.ListProfilesAsync(cancellationToken);
+        return Results.Ok(profiles.Select(profile => new
+        {
+            profile.Id,
+            profile.IssuerName,
+            profile.IssuerEmail,
+            profile.DefaultCurrencyCode,
+            profile.InvoicePrefix,
+            profile.NextSequence,
+            profile.DefaultTaxRate,
+            profile.TaxLabel,
+            profile.UpdatedAtUtc
+        }));
+    }
 }
+

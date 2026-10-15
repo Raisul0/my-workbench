@@ -1,7 +1,8 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { InvoicesApiService } from '../../services';
 import { InvoiceSummary, InvoiceTemplateSummary, TemplateFieldBinding } from '../../models';
 
@@ -24,7 +25,12 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   actionMessage = '';
   previewingInvoice = false;
   generatingInvoice = false;
+  deletingInvoice = false;
   settings: any = null;
+  settingsList: any[] = [];
+  selectedProfileForEdit: any = null;
+  selectedProfile: any = null;
+  lineItemColumnLabels: Record<string, string> = {};
   templates: InvoiceTemplateSummary[] = [];
   templateName = '';
   templateDescription = '';
@@ -50,6 +56,8 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     private readonly invoicesApi: InvoicesApiService,
     private readonly fb: FormBuilder,
     private readonly sanitizer: DomSanitizer,
+    private readonly cdr: ChangeDetectorRef,
+    private readonly router: Router,
   ) {
     this.draftForm = this.fb.nonNullable.group({
       customerName: ['', Validators.required],
@@ -65,6 +73,53 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.loadInvoices();
     this.loadSettings();
     this.loadTemplates();
+    this.loadProfiles();
+  }
+
+  onProfileSelected(profile: any): void {
+    this.selectedProfile = profile;
+    this.updateLineItemColumns(profile.lineItemColumns || []);
+    this.cdr.markForCheck();
+  }
+
+  private updateLineItemColumns(columns: string[]): void {
+    this.lineItemColumnLabels = {};
+    columns.forEach((col) => {
+      const label = col
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .trim();
+
+      this.lineItemColumnLabels[col] = label.charAt(0).toUpperCase() + label.slice(1);
+    });
+  }
+
+  getSelectedProfileColumns(): string[] {
+    return this.selectedProfile?.lineItemColumns || [];
+  }
+
+  getInputTypeForColumn(columnName: string): string {
+    if (columnName.toLowerCase().includes('date')) {
+      return 'date';
+    }
+    if (['rate', 'hours', 'total'].includes(columnName.toLowerCase())) {
+      return 'decimal';
+    }
+    return 'text';
+  }
+
+  getFormControlNameForColumn(columnName: string): string {
+    const lowerName = columnName.toLowerCase();
+    if (lowerName === 'rate') return 'unitPrice';
+    if (lowerName === 'hours') return 'quantity';
+    if (lowerName === 'total') return 'lineTotal';
+    return columnName.charAt(0).toLowerCase() + columnName.slice(1);
+  }
+
+  calculateTotal(lineItem: any): number {
+    const hours = lineItem?.get('quantity')?.value || 0;
+    const rate = lineItem?.get('unitPrice')?.value || 0;
+    return Number((hours * rate).toFixed(2));
   }
 
   ngOnDestroy(): void {
@@ -121,11 +176,18 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
 
   private loadSettings(): void {
     this.invoicesApi.getSettings().subscribe({
-      next: (settings) => {
-        this.settings = settings ?? null;
+      next: (settingsList) => {
+        this.settingsList = Array.isArray(settingsList) ? [...settingsList] : [];
+        // Use first profile as default if available
+        if (this.settingsList.length > 0 && !this.settings) {
+          this.settings = this.settingsList[0];
+        }
+        this.cdr.markForCheck();
       },
       error: () => {
+        this.settingsList = [];
         this.settings = null;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -133,13 +195,15 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   private loadTemplates(): void {
     this.invoicesApi.listTemplates().subscribe({
       next: (templates) => {
-        this.templates = templates ?? [];
+        this.templates = Array.isArray(templates) ? [...templates] : [];
         if (!this.selectedTemplate && this.templates.length > 0) {
           this.selectTemplate(this.templates[0]);
         }
+        this.cdr.markForCheck();
       },
       error: () => {
         this.templates = [];
+        this.cdr.markForCheck();
       },
     });
   }
@@ -150,6 +214,10 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.editorFields = this.getDefaultEditorFields();
     this.templateLayoutMessage = '';
     this.clearTemplatePreview();
+  }
+
+  navigateToDesign(template: InvoiceTemplateSummary): void {
+    this.router.navigate(['/invoices/templates', template.id, 'design']);
   }
 
   previewTemplate(): void {
@@ -385,6 +453,131 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
         this.actionMessage = 'Invoice generation could not be completed.';
       },
     });
+  }
+
+  deleteInvoice(invoiceId: string): void {
+    if (!confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+      return;
+    }
+
+    this.invoicesApi.deleteInvoice(invoiceId).subscribe({
+      next: () => {
+        this.actionMessage = 'Invoice deleted successfully.';
+        this.selectedInvoice = null;
+        this.loadInvoices();
+      },
+      error: () => {
+        this.actionMessage = 'Failed to delete invoice. It may have been generated or archived.';
+      },
+    });
+  }
+
+  // Profile Management Methods
+  profiles: any[] = [];
+  showProfileForm = false;
+  editingProfileId: string | null = null;
+  profileForm: any;
+  profileFormError = '';
+  profileFormSuccess = '';
+  savingProfile = false;
+
+  loadProfiles(): void {
+    this.invoicesApi.listProfiles().subscribe({
+      next: (profiles) => {
+        this.profiles = profiles;
+      },
+      error: () => {
+        this.profiles = [];
+      },
+    });
+  }
+
+  openProfileForm(profile?: any): void {
+    this.editingProfileId = profile?.id || null;
+    this.showProfileForm = true;
+    this.profileFormError = '';
+    this.profileFormSuccess = '';
+
+    if (!this.profileForm) {
+      this.profileForm = this.fb.nonNullable.group({
+        issuerName: ['', Validators.required],
+        issuerAddress: '',
+        issuerEmail: ['', Validators.email],
+        issuerPhone: '',
+        issuerRegistrationNumber: '',
+        issuerTaxNumber: '',
+        defaultCurrencyCode: 'USD',
+        invoicePrefix: 'INV',
+        defaultTaxRate: 0,
+        taxLabel: 'Tax',
+        defaultTerms: '',
+      });
+    }
+
+    if (profile) {
+      this.profileForm.patchValue(profile);
+    } else {
+      this.profileForm.reset({
+        defaultCurrencyCode: 'USD',
+        invoicePrefix: 'INV',
+        defaultTaxRate: 0,
+        taxLabel: 'Tax',
+      });
+    }
+  }
+
+  closeProfileForm(): void {
+    this.showProfileForm = false;
+    this.editingProfileId = null;
+    this.profileFormError = '';
+    this.profileFormSuccess = '';
+  }
+
+  saveProfile(): void {
+    if (!this.profileForm || this.profileForm.invalid) {
+      this.profileFormError = 'Please fill in all required fields.';
+      return;
+    }
+
+    this.savingProfile = true;
+    const profileData = this.profileForm.getRawValue();
+
+    if (this.editingProfileId) {
+      this.invoicesApi.updateProfile(this.editingProfileId, profileData).subscribe({
+        next: () => {
+          this.profileFormSuccess = 'Profile updated successfully.';
+          this.savingProfile = false;
+          this.closeProfileForm();
+          this.loadProfiles();
+        },
+        error: (err) => {
+          this.profileFormError = err?.message || 'Failed to update profile.';
+          this.savingProfile = false;
+        },
+      });
+    } else {
+      this.invoicesApi.createProfile(profileData).subscribe({
+        next: () => {
+          this.profileFormSuccess = 'Profile created successfully.';
+          this.savingProfile = false;
+          this.closeProfileForm();
+          this.loadProfiles();
+        },
+        error: (err) => {
+          this.profileFormError = err?.message || 'Failed to create profile.';
+          this.savingProfile = false;
+        },
+      });
+    }
+  }
+
+  selectProfileForEdit(profile: any): void {
+    this.selectedProfileForEdit = profile;
+    this.openProfileForm(profile);
+  }
+
+  selectProfileForCreation(): void {
+    this.openProfileForm();
   }
 
   get lineItems() {
