@@ -1,24 +1,49 @@
-﻿<div class="app-shell">
-  <aside class="sidebar">
-    <div class="brand">
+<!-- Material Design App Shell with Modern Black, White, Dark Navy Blue Theme -->
+<mat-sidenav-container class="app-container">
+  <!-- Top Navigation Bar -->
+  <mat-toolbar color="primary" class="app-toolbar">
+    <button mat-icon-button (click)="sidenav.toggle()" class="menu-button">
+      <mat-icon>menu</mat-icon>
+    </button>
+    <div class="toolbar-brand">
       <span class="brand-mark">M</span>
-      <span>My Workbench</span>
+      <span class="brand-text">My Workbench</span>
     </div>
+    <span class="toolbar-spacer"></span>
+    <button mat-icon-button class="profile-button">
+      <mat-icon>account_circle</mat-icon>
+    </button>
+  </mat-toolbar>
 
-    <nav class="nav" aria-label="Main navigation">
-      <a
-        *ngFor="let item of navItems"
-        [routerLink]="item.path"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: item.path === '/' }"
-      >
-        <span class="icon">{{ item.icon }}</span>
-        <span>{{ item.label }}</span>
-      </a>
+  <!-- Sidebar Navigation -->
+  <mat-sidenav
+    #sidenav
+    class="app-sidenav"
+    mode="side"
+    opened="true"
+    fixedInViewport
+  >
+    <nav class="sidenav-nav" aria-label="Main navigation">
+      <mat-nav-list class="nav-list">
+        <mat-list-item
+          *ngFor="let item of navItems"
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.path === '/' }"
+          class="nav-item"
+        >
+          <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+          <span matListItemTitle>{{ item.label }}</span>
+        </mat-list-item>
+      </mat-nav-list>
     </nav>
-  </aside>
+  </mat-sidenav>
 
-  <main class="main-panel">
-    <router-outlet />
-  </main>
-</div>
+  <!-- Main Content Area -->
+  <mat-sidenav-content class="app-content">
+    <div class="content-wrapper">
+      <router-outlet />
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
+

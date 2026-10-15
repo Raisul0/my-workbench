@@ -1,89 +1,173 @@
 :host {
   display: block;
   height: 100vh;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-  color: #0f172a;
-  font-family: Inter, 'Segoe UI', sans-serif;
 }
 
-.app-shell {
-  display: flex;
-  min-height: 100vh;
-}
-
-.sidebar {
-  width: 260px;
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 1.5rem 1rem;
-  box-shadow: 4px 0 20px rgba(15, 23, 42, 0.12);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.1rem;
-  font-weight: 700;
-  padding: 0.5rem 0.75rem 1.5rem;
-}
-
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.6rem;
-  background: linear-gradient(135deg, #38bdf8, #2563eb);
-  color: white;
-}
-
-.nav {
+.app-container {
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
-.nav a {
+.app-toolbar {
+  box-shadow: var(--shadow-md);
+  background-color: var(--primary-navy) !important;
+  color: white;
+  z-index: 100;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 0.9rem;
-  border-radius: 0.8rem;
-  color: #cbd5e1;
-  text-decoration: none;
-  transition: 0.2s ease-in-out;
+  gap: var(--spacing-md);
+
+  .menu-button {
+    color: white;
+    margin-right: var(--spacing-sm);
+  }
+
+  .toolbar-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    letter-spacing: -0.5px;
+
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--border-radius-md);
+      background: linear-gradient(135deg, var(--primary-navy-light), var(--primary-navy));
+      color: white;
+      font-weight: 700;
+      font-size: var(--font-size-lg);
+    }
+
+    .brand-text {
+      font-weight: 600;
+    }
+  }
+
+  .toolbar-spacer {
+    flex: 1;
+  }
+
+  .profile-button {
+    color: white;
+  }
 }
 
-.nav a:hover,
-.nav a.active {
-  background: rgba(148, 163, 184, 0.14);
-  color: #ffffff;
+.app-sidenav {
+  width: 260px;
+  background-color: var(--color-light-gray);
+  border-right: 1px solid var(--color-border-gray);
+
+  .sidenav-nav {
+    padding: var(--spacing-md) 0;
+
+    .nav-list {
+      padding: 0;
+
+      .nav-item {
+        margin: 0 var(--spacing-sm);
+        border-radius: var(--border-radius-md);
+        color: #666;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        font-weight: 500;
+
+        mat-icon {
+          color: #999;
+          margin-right: var(--spacing-md);
+        }
+
+        &:hover {
+          background-color: rgba(0, 69, 137, 0.08);
+          color: var(--primary-navy);
+
+          mat-icon {
+            color: var(--primary-navy);
+          }
+        }
+
+        &.active {
+          background-color: rgba(0, 69, 137, 0.15);
+          color: var(--primary-navy);
+          font-weight: 600;
+
+          mat-icon {
+            color: var(--primary-navy);
+          }
+        }
+      }
+    }
+  }
 }
 
-.icon {
-  display: inline-flex;
-  width: 1.5rem;
-  justify-content: center;
-}
-
-.main-panel {
+.app-content {
   flex: 1;
-  padding: 2rem 2rem 3rem;
+  overflow-y: auto;
+  background-color: var(--color-light-gray);
+
+  .content-wrapper {
+    padding: var(--spacing-lg);
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+
+    @media (max-width: 768px) {
+      padding: var(--spacing-md);
+    }
+  }
 }
 
+// Scrollbar styling for dark theme elements
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+
+  &:hover {
+    background: #999;
+  }
+}
+
+// Responsive adjustments
 @media (max-width: 768px) {
-  .app-shell {
-    flex-direction: column;
+  .app-toolbar {
+    .toolbar-brand {
+      font-size: var(--font-size-base);
+
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        font-size: var(--font-size-base);
+      }
+    }
   }
 
-  .sidebar {
-    width: 100%;
-    padding-bottom: 1rem;
+  .app-sidenav {
+    width: 240px;
   }
+}
 
-  .main-panel {
-    padding: 1.25rem;
+@media (max-width: 600px) {
+  .app-toolbar {
+    .toolbar-brand {
+      gap: 4px;
+
+      .brand-text {
+        display: none;
+      }
+    }
   }
 }
