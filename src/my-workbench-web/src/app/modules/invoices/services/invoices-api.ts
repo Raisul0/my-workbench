@@ -148,6 +148,13 @@ export class InvoicesApiService extends ApiService {
       catchError(() => of(null))
     );
   }
-}
 
+  getBackgroundImageAsBase64(fileName: string) {
+    return this.get<{ imageBase64: string }>(
+      `/api/invoices/templates/background/${encodeURIComponent(fileName)}`
+    ).pipe(
+      catchError(() => of(null))
+    );
+  }
+}
 

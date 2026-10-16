@@ -82,6 +82,7 @@ public static class InvoiceEndpoints
                 template.IsArchived,
                 template.ActiveVersion?.VersionNumber,
                 template.ActiveVersion?.SourceType,
+                template.ActiveVersion?.LayoutJson,
                 template.UpdatedAtUtc
             }));
         });
@@ -195,6 +196,23 @@ public static class InvoiceEndpoints
                     fileName = file.FileName,
                     uploadedAtUtc = DateTimeOffset.UtcNow
                 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        });
+
+        group.MapGet("/templates/background/{fileName}", async (string fileName, TemplateBackgroundImageService service, CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var base64 = await service.GetBackgroundImageAsBase64Async(fileName, cancellationToken);
+                if (string.IsNullOrEmpty(base64))
+                {
+                    return Results.NotFound(new { message = "Image not found." });
+                }
+                return Results.Ok(new { imageBase64 = base64 });
             }
             catch (InvalidOperationException ex)
             {

@@ -225,14 +225,22 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.clearTemplatePreview();
 
     // Load layout if available to restore editor state and background image
-    if (template.activeVersion && template.activeVersion.layoutJson) {
+    if (template?.versionNumber && template?.layoutJson) {
       try {
-        const layout = JSON.parse(template.activeVersion.layoutJson);
-        if (layout.fields && Array.isArray(layout.fields)) {
-          this.editorFields = layout.fields;
+        const layout = JSON.parse(template?.layoutJson);
+        // Handle PascalCase property names from C# backend
+        if (layout.Fields && Array.isArray(layout.Fields)) {
+          this.editorFields = layout.Fields.map((field: any) => ({
+            name: field.Name,
+            type: field.Type,
+            x: field.X,
+            y: field.Y,
+            width: field.Width,
+            height: field.Height,
+          }));
         }
-        if (layout.backgroundImagePath) {
-          this.templateBackgroundImagePath = layout.backgroundImagePath;
+        if (layout.BackgroundImagePath) {
+          this.templateBackgroundImagePath = layout.BackgroundImagePath;
         }
       } catch (e) {
         // Layout parsing failed, use defaults

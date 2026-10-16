@@ -85,6 +85,49 @@ public sealed class TemplateBackgroundImageService
         }
     }
 
+    public async Task<string> GetBackgroundImageAsBase64Async(string fileName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(fileName);
+
+        try
+        {
+            if (!IsAllowedImageFileName(fileName))
+            {
+                throw new InvalidOperationException("The file name is invalid or unsafe.");
+            }
+
+            var filePath = Path.Combine(_backgroundsDirectory, fileName);
+
+            // Security check: ensure the file is within the backgrounds directory
+            var fullBackgroundsPath = Path.GetFullPath(_backgroundsDirectory);
+            var fullFilePath = Path.GetFullPath(filePath);
+            if (!fullFilePath.StartsWith(fullBackgroundsPath))
+            {
+                throw new InvalidOperationException("Access to this file is not allowed.");
+            }
+
+            if (!File.Exists(fullFilePath))
+            {
+                _logger.LogWarning("Background image file not found: {FilePath}", fullFilePath);
+                return string.Empty;
+            }
+
+            var imageBytes = await File.ReadAllBytesAsync(fullFilePath, cancellationToken);
+            var base64String = Convert.ToBase64String(imageBytes);
+            
+            var contentType = InferContentType(fileName);
+            var dataUrl = $"data:{contentType};base64,{base64String}";
+            
+            _logger.LogInformation("Background image converted to base64: {FileName}", fileName);
+            return dataUrl;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get background image as base64");
+            throw;
+        }
+    }
+
     private static bool IsAllowedImageFileName(string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileName))

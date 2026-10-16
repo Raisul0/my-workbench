@@ -155,24 +155,69 @@ export class InvoicesTemplateDesignComponent implements OnInit, OnDestroy {
     ];
 
     // Load saved layout if available
-    if (this.template?.activeVersion?.layoutJson) {
+    if (this.template?.layoutJson) {
       try {
-        const layout = JSON.parse(this.template.activeVersion.layoutJson);
-        if (layout.fields && Array.isArray(layout.fields)) {
-          this.fields = layout.fields;
+        console.log('Parsing layout JSON:', this.template.layoutJson);
+        const layout = JSON.parse(this.template.layoutJson);
+        console.log('Parsed layout:', layout);
+        
+        // Handle PascalCase property names from C# backend
+        if (layout.Fields && Array.isArray(layout.Fields)) {
+          this.fields = layout.Fields.map((field: any) => ({
+            name: field.Name,
+            type: field.Type,
+            x: field.X,
+            y: field.Y,
+            width: field.Width,
+            height: field.Height,
+          }));
         }
-        if (layout.backgroundImagePath) {
-          this.backgroundImagePath = layout.backgroundImagePath;
-          this.backgroundImagePreview = layout.backgroundImagePath;
+        if (layout.BackgroundImagePath) {
+          console.log('Setting background image path:', layout.BackgroundImagePath);
+          this.backgroundImagePath = layout.BackgroundImagePath;
+          
+          // Extract the file name from the path
+          const fileName = layout.BackgroundImagePath.split('/').pop();
+          if (fileName) {
+            // Get the image as base64 from the API
+            this.invoicesApi.getBackgroundImageAsBase64(fileName).subscribe({
+              next: (result) => {
+                if (result && result.imageBase64) {
+                  this.backgroundImagePreview = result.imageBase64;
+                  console.log('Background image loaded as base64');
+                  this.cdr.markForCheck();
+                }
+              },
+              error: (err) => {
+                console.error('Failed to load background image:', err);
+              }
+            });
+          }
+        } else {
+          console.log('No BackgroundImagePath in layout');
         }
       } catch (e) {
         // Layout parsing failed, use defaults
         console.error('Failed to parse template layout', e);
       }
+    } else {
+      console.log('No layoutJson in template');
     }
 
     this.loading = false;
     this.cdr.markForCheck();
+  }
+
+  private getApiBaseUrl(): string {
+    const location = window.location;
+    
+    // If already on API origin (has :5109, :5001, etc.), use it directly
+    if (location.port === '5109' || location.port === '5001' || location.port === '5000') {
+      return `${location.protocol}//${location.hostname}:${location.port}`;
+    }
+    
+    // Default to localhost:5109 for development
+    return 'http://localhost:5109';
   }
 
   onBackgroundImageChange(event: Event): void {

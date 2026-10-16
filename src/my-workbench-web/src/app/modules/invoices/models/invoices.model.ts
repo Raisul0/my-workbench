@@ -26,11 +26,9 @@ export interface InvoiceTemplateSummary {
   description?: string;
   activeVersionId?: string;
   isArchived?: boolean;
-  activeVersion?: {
-    versionNumber?: number;
-    sourceType?: string;
-    layoutJson?: string;
-  };
+  versionNumber?: number;
+  sourceType?: string;
+  layoutJson?: string;
   updatedAtUtc?: string;
 }
 
