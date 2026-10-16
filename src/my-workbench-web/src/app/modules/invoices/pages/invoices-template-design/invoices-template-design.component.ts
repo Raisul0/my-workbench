@@ -38,6 +38,7 @@ export class InvoicesTemplateDesignComponent implements OnInit, OnDestroy {
   // Background
   backgroundImageFile: File | null = null;
   backgroundImagePreview: string | null = null;
+  backgroundImagePath: string | null = null;
   backgroundUploadError = '';
 
   // Field management
@@ -152,6 +153,24 @@ export class InvoicesTemplateDesignComponent implements OnInit, OnDestroy {
       { name: 'grandTotal', type: 'Currency', x: 140, y: 190, width: 45, height: 8 },
       { name: 'pageNumber', type: 'Number', x: 190, y: 280, width: 15, height: 5 },
     ];
+
+    // Load saved layout if available
+    if (this.template?.activeVersion?.layoutJson) {
+      try {
+        const layout = JSON.parse(this.template.activeVersion.layoutJson);
+        if (layout.fields && Array.isArray(layout.fields)) {
+          this.fields = layout.fields;
+        }
+        if (layout.backgroundImagePath) {
+          this.backgroundImagePath = layout.backgroundImagePath;
+          this.backgroundImagePreview = layout.backgroundImagePath;
+        }
+      } catch (e) {
+        // Layout parsing failed, use defaults
+        console.error('Failed to parse template layout', e);
+      }
+    }
+
     this.loading = false;
     this.cdr.markForCheck();
   }
@@ -183,6 +202,7 @@ export class InvoicesTemplateDesignComponent implements OnInit, OnDestroy {
   clearBackground(): void {
     this.backgroundImageFile = null;
     this.backgroundImagePreview = null;
+    this.backgroundImagePath = null;
     this.backgroundUploadError = '';
   }
 
@@ -301,11 +321,43 @@ export class InvoicesTemplateDesignComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     this.successMessage = '';
 
+    // If there's a new background image file, upload it first
+    if (this.backgroundImageFile) {
+      this.invoicesApi.uploadBackgroundImage(this.backgroundImageFile).subscribe({
+        next: (result) => {
+          if (result && result.imagePath) {
+            this.backgroundImagePath = result.imagePath;
+            this.saveLayoutWithBackgroundPath();
+          } else {
+            this.savingLayout = false;
+            this.errorMessage = 'Failed to upload background image.';
+            this.cdr.markForCheck();
+          }
+        },
+        error: () => {
+          this.savingLayout = false;
+          this.errorMessage = 'Failed to upload background image. Please try again.';
+          this.cdr.markForCheck();
+        },
+      });
+    } else {
+      // No new image, save layout directly with existing path
+      this.saveLayoutWithBackgroundPath();
+    }
+  }
+
+  private saveLayoutWithBackgroundPath(): void {
+    if (!this.template) {
+      this.errorMessage = 'No template selected.';
+      this.savingLayout = false;
+      return;
+    }
+
     const layout: TemplateLayoutDocument = {
       schemaVersion: 1,
       name: this.template.name,
       fields: this.fields,
-      backgroundImage: this.backgroundImagePreview || undefined,
+      backgroundImagePath: this.backgroundImagePath || undefined,
     };
 
     this.invoicesApi.saveTemplateLayout(this.template.id, layout).subscribe({
@@ -318,6 +370,7 @@ export class InvoicesTemplateDesignComponent implements OnInit, OnDestroy {
         }
 
         this.successMessage = 'Template layout saved successfully!';
+        this.backgroundImageFile = null;
         this.cdr.markForCheck();
 
         // Redirect after 2 seconds

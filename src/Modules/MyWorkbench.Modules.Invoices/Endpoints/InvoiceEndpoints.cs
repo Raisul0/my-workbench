@@ -20,6 +20,7 @@ public static class InvoiceEndpoints
         group.MapGet("/profiles/{profileId}", GetProfileById);
         group.MapPost("/profiles", CreateProfile);
         group.MapPut("/profiles/{profileId}", UpdateProfile);
+        group.MapDelete("/profiles/{profileId}", DeleteProfile);
 
         group.MapGet("/settings", GetSettings);
 
@@ -168,6 +169,31 @@ public static class InvoiceEndpoints
                     version.LayoutSchemaVersion,
                     version.LayoutJson,
                     version.CreatedAtUtc
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        });
+
+        group.MapPost("/templates/upload-background", async (HttpRequest request, TemplateBackgroundImageService service, CancellationToken cancellationToken) =>
+        {
+            var form = await request.ReadFormAsync(cancellationToken);
+            var file = form.Files.FirstOrDefault();
+            if (file is null)
+            {
+                return Results.BadRequest(new { message = "A background image file is required." });
+            }
+
+            try
+            {
+                var imagePath = await service.UploadBackgroundImageAsync(file, cancellationToken);
+                return Results.Ok(new
+                {
+                    imagePath,
+                    fileName = file.FileName,
+                    uploadedAtUtc = DateTimeOffset.UtcNow
                 });
             }
             catch (InvalidOperationException ex)
@@ -329,6 +355,23 @@ public static class InvoiceEndpoints
         catch (Exception ex)
         {
             return Results.BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> DeleteProfile(Guid profileId, InvoiceDraftService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await service.DeleteProfileAsync(profileId, cancellationToken);
+            return Results.NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return Results.InternalServerError();
         }
     }
 

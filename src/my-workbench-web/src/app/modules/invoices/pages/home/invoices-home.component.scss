@@ -1,1 +1,89 @@
-.profiles-list{display:flex;flex-direction:column;gap:.75rem}.profile-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;padding:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.9rem;width:100%;cursor:pointer;transition:border-color .2s,box-shadow .2s;overflow:hidden}.profile-item:hover{border-color:#94a3b8;box-shadow:0 4px 12px rgba(15,23,42,.04)}.profile-info-button{display:flex;align-items:center;justify-content:space-between;flex:1;padding:1rem 1.1rem;background:0;border:none;text-align:left;cursor:pointer;color:inherit;font-family:inherit}.profile-info-button > div:first-child{flex:1;min-width:0}.profile-info-button > .meta-block{display:flex;gap:.5rem;align-items:center;font-size:.875rem;color:#64748b}.profile-info-button > .meta-block .status-chip{background:#dbeafe;padding:.25rem .5rem;border-radius:.375rem;font-size:.75rem;font-weight:700;text-transform:uppercase;color:#1e40af}.edit-button{padding:.6rem 1rem;background:#0f172a;color:#fff;border:none;border-radius:0;cursor:pointer;font-weight:600;font-size:.875rem;transition:background .2s;border-left:1px solid #e2e8f0}.edit-button:hover{background:#1e293b}.selected-profile-item{border-color:#0f172a;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08)}
+﻿.profiles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: stretch;
+  background: #13131a;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  }
+}
+
+.selected-profile-item {
+  border-color: rgba(79, 142, 247, 0.4) !important;
+  box-shadow: 0 0 0 1px rgba(79, 142, 247, 0.15), 0 4px 24px rgba(79, 142, 247, 0.08) !important;
+}
+
+.profile-info-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  padding: 0.9rem 1.1rem;
+  background: 0;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  transition: background 0.2s;
+
+  & > div:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+
+  & > .meta-block {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #a0a0a8;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.edit-button {
+  padding: 0.6rem 1.1rem;
+  background: rgba(79, 142, 247, 0.08);
+  color: #4f8ef7;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(79, 142, 247, 0.18);
+    color: #7ab0ff;
+  }
+}
+
+.delete-button {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.18);
+    color: #ff6b6b;
+  }
+}

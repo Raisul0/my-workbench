@@ -96,6 +96,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// Serve static files from wwwroot
+app.UseStaticFiles();
+
 if (requireAuthentication)
 {
     app.UseAuthentication();

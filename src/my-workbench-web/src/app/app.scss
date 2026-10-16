@@ -60,8 +60,8 @@
 
 .app-sidenav {
   width: 260px;
-  background-color: var(--color-light-gray);
-  border-right: 1px solid var(--color-border-gray);
+  background-color: #0a0a0d;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
 
   .sidenav-nav {
     padding: var(--spacing-md) 0;
@@ -72,32 +72,32 @@
       .nav-item {
         margin: 0 var(--spacing-sm);
         border-radius: var(--border-radius-md);
-        color: #666;
+        color: #a0a0a8;
         cursor: pointer;
         transition: all 0.2s ease-in-out;
         font-weight: 500;
 
         mat-icon {
-          color: #999;
+          color: #606068;
           margin-right: var(--spacing-md);
         }
 
         &:hover {
-          background-color: rgba(0, 69, 137, 0.08);
-          color: var(--primary-navy);
+          background-color: rgba(79, 142, 247, 0.08);
+          color: #c0c0c8;
 
           mat-icon {
-            color: var(--primary-navy);
+            color: #8080a0;
           }
         }
 
         &.active {
-          background-color: rgba(0, 69, 137, 0.15);
-          color: var(--primary-navy);
+          background-color: rgba(79, 142, 247, 0.14);
+          color: #4f8ef7;
           font-weight: 600;
 
           mat-icon {
-            color: var(--primary-navy);
+            color: #4f8ef7;
           }
         }
       }
@@ -108,7 +108,7 @@
 .app-content {
   flex: 1;
   overflow-y: auto;
-  background-color: var(--color-light-gray);
+  background-color: #000;
 
   .content-wrapper {
     padding: var(--spacing-lg);
@@ -122,7 +122,7 @@
   }
 }
 
-// Scrollbar styling for dark theme elements
+// Scrollbar styling for dark theme
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -133,11 +133,11 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: #303038;
   border-radius: 4px;
 
   &:hover {
-    background: #999;
+    background: #404050;
   }
 }
 

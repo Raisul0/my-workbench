@@ -201,6 +201,10 @@
           <button type="button" class="edit-button" (click)="selectProfileForEdit(profile)" title="Edit this profile">
             ✎ Edit
           </button>
+
+          <button type="button" class="edit-button delete-button" (click)="deleteProfile(profile.id, profile.issuerName)" title="Delete this profile">
+            🗑 Delete
+          </button>
         </article>
       }
     </div>
@@ -233,6 +237,11 @@
     <label>
       Source file
       <input type="file" accept=".pdf,image/png,image/jpeg" (change)="onTemplateFileChange($event)" />
+    </label>
+
+    <label>
+      Background Image (PNG/JPG)
+      <input type="file" accept="image/png,image/jpeg" (change)="onBackgroundImageChange($event)" />
     </label>
 
     <div class="form-actions template-actions">

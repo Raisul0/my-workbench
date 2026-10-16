@@ -32,6 +32,7 @@ public static class ModuleRegistration
         services.AddScoped<InvoiceTemplateService>();
         services.AddScoped<InvoiceTemplateUploadService>();
         services.AddScoped<InvoiceTemplateLayoutService>();
+        services.AddScoped<TemplateBackgroundImageService>();
         services.AddScoped<IInvoicePdfRenderer, InvoicePdfRenderer>();
         services.AddScoped<InvoiceGenerationService>();
 

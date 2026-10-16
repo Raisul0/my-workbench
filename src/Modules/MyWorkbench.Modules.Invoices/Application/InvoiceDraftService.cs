@@ -306,6 +306,40 @@ public class InvoiceDraftService
         }
     }
 
+    public async Task DeleteProfileAsync(Guid profileId, CancellationToken cancellationToken = default)
+    {
+        using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceDraftService), nameof(DeleteProfileAsync));
+        InvoiceServiceLog.Started(_logger, nameof(DeleteProfileAsync));
+
+        try
+        {
+            var profile = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(x => x.Id == profileId, cancellationToken);
+            if (profile is null)
+            {
+                throw new InvalidOperationException("Business profile not found.");
+            }
+
+            // Check if there are any invoices associated with this profile
+            var invoiceCount = await _dbContext.Invoices
+                .Where(x => x.BusinessProfileId == profileId)
+                .CountAsync(cancellationToken);
+
+            if (invoiceCount > 0)
+            {
+                throw new InvalidOperationException($"Cannot delete this profile because it has {invoiceCount} associated invoice(s). Please delete or reassign the invoices first.");
+            }
+
+            _dbContext.BusinessProfiles.Remove(profile);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            InvoiceServiceLog.Succeeded(_logger, nameof(DeleteProfileAsync), profileId);
+        }
+        catch (Exception ex)
+        {
+            InvoiceServiceLog.Failed(_logger, ex, nameof(DeleteProfileAsync));
+            throw;
+        }
+    }
+
     private IReadOnlyList<string> ResolveLineItemColumns(IReadOnlyCollection<string> requestedColumns, BusinessProfile profile)
     {
         if (requestedColumns.Count == 0)

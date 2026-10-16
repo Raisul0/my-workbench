@@ -29,6 +29,7 @@ export interface InvoiceTemplateSummary {
   activeVersion?: {
     versionNumber?: number;
     sourceType?: string;
+    layoutJson?: string;
   };
   updatedAtUtc?: string;
 }
@@ -57,7 +58,7 @@ export interface TemplateLayoutDocument {
   schemaVersion: number;
   name: string;
   fields: TemplateFieldBinding[];
-  backgroundImage?: string;
+  backgroundImagePath?: string;
 }
 
 export interface CreateInvoiceDraftRequest {

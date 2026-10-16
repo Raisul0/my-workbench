@@ -130,5 +130,24 @@ export class InvoicesApiService extends ApiService {
       catchError(() => of(null))
     );
   }
+
+  deleteProfile(profileId: string) {
+    return this.delete(`/api/invoices/profiles/${profileId}`).pipe(
+      catchError(() => of(null))
+    );
+  }
+
+  uploadBackgroundImage(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.postFormData<{ imagePath: string; fileName: string; uploadedAtUtc: string }>(
+      '/api/invoices/templates/upload-background',
+      formData
+    ).pipe(
+      catchError(() => of(null))
+    );
+  }
 }
+
 

@@ -35,10 +35,13 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   templateName = '';
   templateDescription = '';
   selectedTemplateFile: File | null = null;
+  selectedBackgroundImageFile: File | null = null;
   uploadingTemplate = false;
+  uploadingBackgroundImage = false;
   templateUploadError = '';
   templateUploadSuccess = '';
   selectedTemplate: InvoiceTemplateSummary | null = null;
+  templateBackgroundImagePath: string | null = null;
   selectedEditorIndex = -1;
   editorFields: TemplateFieldBinding[] = [];
   fieldTypes = ['Text', 'Number', 'Date', 'Currency', 'Address', 'Table'];
@@ -135,6 +138,11 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.selectedTemplateFile = input.files?.[0] ?? null;
   }
 
+  onBackgroundImageChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.selectedBackgroundImageFile = input.files?.[0] ?? null;
+  }
+
   uploadTemplate(): void {
     if (!this.selectedTemplateFile) {
       this.templateUploadError = 'Choose a PDF or image template before uploading.';
@@ -213,7 +221,24 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.selectedEditorIndex = -1;
     this.editorFields = this.getDefaultEditorFields();
     this.templateLayoutMessage = '';
+    this.templateBackgroundImagePath = null;
     this.clearTemplatePreview();
+
+    // Load layout if available to restore editor state and background image
+    if (template.activeVersion && template.activeVersion.layoutJson) {
+      try {
+        const layout = JSON.parse(template.activeVersion.layoutJson);
+        if (layout.fields && Array.isArray(layout.fields)) {
+          this.editorFields = layout.fields;
+        }
+        if (layout.backgroundImagePath) {
+          this.templateBackgroundImagePath = layout.backgroundImagePath;
+        }
+      } catch (e) {
+        // Layout parsing failed, use defaults
+        console.error('Failed to parse template layout', e);
+      }
+    }
   }
 
   navigateToDesign(template: InvoiceTemplateSummary): void {
@@ -362,13 +387,41 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.savingTemplateLayout = true;
     this.templateLayoutMessage = '';
 
-    const payload = {
+    // If there's a background image file to upload, upload it first
+    if (this.selectedBackgroundImageFile) {
+      this.invoicesApi.uploadBackgroundImage(this.selectedBackgroundImageFile).subscribe({
+        next: (result) => {
+          if (result && result.imagePath) {
+            this.saveLayoutWithBackgroundImage(normalizedFields, result.imagePath);
+          } else {
+            this.savingTemplateLayout = false;
+            this.templateLayoutSaved = false;
+            this.templateLayoutMessage = 'Background image upload failed.';
+          }
+        },
+        error: () => {
+          this.savingTemplateLayout = false;
+          this.templateLayoutSaved = false;
+          this.templateLayoutMessage = 'Failed to upload background image.';
+        },
+      });
+    } else {
+      this.saveLayoutWithBackgroundImage(normalizedFields, undefined);
+    }
+  }
+
+  private saveLayoutWithBackgroundImage(normalizedFields: any[], backgroundImagePath?: string): void {
+    const payload: any = {
       schemaVersion: 1,
-      name: this.selectedTemplate.name,
+      name: this.selectedTemplate!.name,
       fields: normalizedFields,
     };
 
-    this.invoicesApi.saveTemplateLayout(this.selectedTemplate.id, payload).subscribe({
+    if (backgroundImagePath) {
+      payload.backgroundImagePath = backgroundImagePath;
+    }
+
+    this.invoicesApi.saveTemplateLayout(this.selectedTemplate!.id, payload).subscribe({
       next: (result) => {
         this.savingTemplateLayout = false;
         if (!result) {
@@ -379,6 +432,11 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
 
         this.templateLayoutSaved = true;
         this.templateLayoutMessage = `Layout saved to template version ${result.versionNumber ?? 1}.`;
+        this.selectedBackgroundImageFile = null;
+        const input = document.querySelector<HTMLInputElement>('input[accept="image/png,image/jpeg"]');
+        if (input) {
+          input.value = '';
+        }
       },
       error: () => {
         this.savingTemplateLayout = false;
@@ -573,11 +631,41 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
 
   selectProfileForEdit(profile: any): void {
     this.selectedProfileForEdit = profile;
-    this.openProfileForm(profile);
+    
+    // Fetch full profile details from the API
+    this.invoicesApi.getProfile(profile.id).subscribe({
+      next: (profileDetail) => {
+        if (profileDetail) {
+          this.selectedProfileForEdit = profileDetail;
+          this.openProfileForm(profileDetail);
+        } else {
+          this.profileFormError = 'Failed to load profile details.';
+        }
+      },
+      error: () => {
+        this.profileFormError = 'Unable to fetch profile details. Please try again.';
+      },
+    });
   }
 
   selectProfileForCreation(): void {
     this.openProfileForm();
+  }
+
+  deleteProfile(profileId: string, profileName: string): void {
+    if (!confirm(`Are you sure you want to delete the profile "${profileName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    this.invoicesApi.deleteProfile(profileId).subscribe({
+      next: () => {
+        this.profileFormSuccess = `Profile "${profileName}" deleted successfully.`;
+        this.loadProfiles();
+      },
+      error: (err) => {
+        this.profileFormError = err?.message || `Failed to delete profile. It may have associated invoices.`;
+      },
+    });
   }
 
   get lineItems() {

@@ -589,6 +589,38 @@ PUT /api/invoices/profiles/{profileId}
 
 ---
 
+### 16. Delete Business Profile
+
+Deletes a business profile. A profile can only be deleted if it has no associated invoices.
+
+```
+DELETE /api/invoices/profiles/{profileId}
+```
+
+**Path Parameters**:
+- `profileId` (required): Business profile identifier (UUID)
+
+**Response: 204 No Content**
+
+No response body on success.
+
+**Error Responses**:
+- `400 Bad Request`: Profile cannot be deleted because it has associated invoices
+  ```json
+  {
+    "message": "Cannot delete this profile because it has 5 associated invoice(s). Please delete or reassign the invoices first."
+  }
+  ```
+- `404 Not Found`: Profile not found
+  ```json
+  {
+    "message": "Business profile not found."
+  }
+  ```
+- `500 Internal Server Error`: Database or deletion error
+
+---
+
 ## Common Error Responses
 
 ### 400 Bad Request
