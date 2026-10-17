@@ -1,0 +1,17 @@
+{
+  "businessProfileId": "781020b7-8673-4a48-8062-e0e800c792df",
+  "notes": "Test invoice with template layout",
+  "currencyCode": "USD",
+  "terms": "Payment due within 30 days",
+  "issueDate": "2026-01-15",
+  "dueDate": "2026-02-15",
+  "lineItemColumns": "description:text,hours:number,rate:number,total:number",
+  "lineItems": [
+    {
+      "description": "Web Development Services",
+      "total": 1500.00,
+      "otherColumns": "hours: 10, rate: 150.00"
+    }
+  ],
+  "templateVersionId": "97020449-1403-45da-8552-7ce31f468dca"
+}

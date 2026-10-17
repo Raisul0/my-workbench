@@ -1,6 +1,7 @@
-using System.Text;
 using Microsoft.Extensions.Logging;
 using MyWorkbench.Modules.Invoices.Domain;
+using System.Text;
+using System.Text.Json;
 
 namespace MyWorkbench.Modules.Invoices.Application;
 
@@ -39,6 +40,120 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
             throw;
         }
     }
+
+    public Task<string> RenderPreviewHtmlAsync(InvoiceTemplateVersion version, object? sampleData = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+
+        using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoicePdfRenderer), nameof(RenderPreviewHtmlAsync), version.Id);
+        InvoiceServiceLog.Started(_logger, nameof(RenderPreviewHtmlAsync), version.Id);
+
+        try
+        {
+            if (version.LayoutSchemaVersion <= 0)
+            {
+                throw new InvalidOperationException("The template layout schema version must be greater than zero.");
+            }
+
+            var invoice = sampleData as Invoice;
+            var html = BuildHtmlInvoice(version, invoice);
+            InvoiceServiceLog.Succeeded(_logger, nameof(RenderPreviewHtmlAsync), version.Id);
+            return Task.FromResult(html);
+        }
+        catch (Exception ex)
+        {
+            InvoiceServiceLog.Failed(_logger, ex, nameof(RenderPreviewHtmlAsync), version.Id);
+            throw;
+        }
+    }
+
+    private static string GetFieldClass(string fieldType)
+    {
+        return fieldType.ToLowerInvariant() switch
+        {
+            "currency" => "field-currency",
+            "number" => "field-number",
+            "address" => "field-address",
+            "table" => "field-table",
+            _ => "field-text"
+        };
+    }
+    private static TemplateLayout ParseTemplateLayout(string layoutJson)
+    {
+        var layout = new TemplateLayout { Fields = new List<TemplateField>(), BackgroundImagePath = string.Empty };
+
+        if (string.IsNullOrWhiteSpace(layoutJson))
+            return layout;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(layoutJson);
+            var root = doc.RootElement;
+
+            // Parse background image path
+            if (root.TryGetProperty("BackgroundImagePath", out var bgProp))
+            {
+                layout.BackgroundImagePath = bgProp.GetString() ?? string.Empty;
+            }
+
+            // Parse fields
+            if (root.TryGetProperty("Fields", out var fieldsArray))
+            {
+                foreach (var fieldElement in fieldsArray.EnumerateArray())
+                {
+                    var field = new TemplateField();
+
+                    if (fieldElement.TryGetProperty("Name", out var nameProp))
+                        field.Name = nameProp.GetString() ?? string.Empty;
+
+                    if (fieldElement.TryGetProperty("Type", out var typeProp))
+                        field.Type = typeProp.GetString() ?? "Text";
+
+                    if (fieldElement.TryGetProperty("X", out var xProp))
+                        field.X = xProp.GetDecimal();
+
+                    if (fieldElement.TryGetProperty("Y", out var yProp))
+                        field.Y = yProp.GetDecimal();
+
+                    if (fieldElement.TryGetProperty("Width", out var wProp))
+                        field.Width = wProp.GetDecimal();
+
+                    if (fieldElement.TryGetProperty("Height", out var hProp))
+                        field.Height = hProp.GetDecimal();
+
+                    layout.Fields.Add(field);
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // If layout JSON is invalid, return default empty layout
+        }
+
+        return layout;
+    }
+    private static decimal PointsToPixels(decimal points)
+    {
+        // Standard conversion: 1 point = 1.333... pixels (96 DPI / 72 points per inch)
+        return Math.Round(points * 96m / 72m, 2);
+    }
+
+    private class TemplateLayout
+    {
+        public List<TemplateField> Fields { get; set; } = new();
+        public string BackgroundImagePath { get; set; } = string.Empty;
+    }
+
+    private class TemplateField
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = "Text";
+        public decimal X { get; set; }
+        public decimal Y { get; set; }
+        public decimal Width { get; set; }
+        public decimal Height { get; set; }
+    }
+
 
     private static string BuildHtmlInvoice(InvoiceTemplateVersion version, Invoice? invoice)
     {

@@ -27,22 +27,22 @@ public sealed class InvoiceGenerationService
         _logger = logger;
     }
 
-    public async Task<byte[]> PreviewAsync(Guid invoiceId, CancellationToken cancellationToken = default)
+    public async Task<string> PreviewHtmlAsync(Guid invoiceId, CancellationToken cancellationToken = default)
     {
-        using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceGenerationService), nameof(PreviewAsync), invoiceId);
-        InvoiceServiceLog.Started(_logger, nameof(PreviewAsync), invoiceId);
+        using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceGenerationService), nameof(PreviewHtmlAsync), invoiceId);
+        InvoiceServiceLog.Started(_logger, nameof(PreviewHtmlAsync), invoiceId);
 
         try
         {
             var invoice = await LoadInvoiceAsync(invoiceId, cancellationToken);
             var templateVersion = await LoadTemplateVersionAsync(invoice.TemplateVersionId, cancellationToken);
-            var bytes = await _pdfRenderer.RenderPreviewAsync(templateVersion, invoice, cancellationToken);
-            InvoiceServiceLog.Succeeded(_logger, nameof(PreviewAsync), invoiceId);
-            return bytes;
+            var html = await _pdfRenderer.RenderPreviewHtmlAsync(templateVersion, invoice, cancellationToken);
+            InvoiceServiceLog.Succeeded(_logger, nameof(PreviewHtmlAsync), invoiceId);
+            return html;
         }
         catch (Exception ex)
         {
-            InvoiceServiceLog.Failed(_logger, ex, nameof(PreviewAsync), invoiceId);
+            InvoiceServiceLog.Failed(_logger, ex, nameof(PreviewHtmlAsync), invoiceId);
             throw;
         }
     }

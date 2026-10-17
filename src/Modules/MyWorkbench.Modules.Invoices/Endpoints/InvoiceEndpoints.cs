@@ -233,8 +233,8 @@ public static class InvoiceEndpoints
         {
             try
             {
-                var bytes = await service.PreviewAsync(invoiceId, cancellationToken);
-                return Results.File(bytes, "application/pdf", "invoice-preview.pdf");
+                var html = await service.PreviewHtmlAsync(invoiceId, cancellationToken);
+                return Results.Ok(new { html });
             }
             catch (InvalidOperationException ex)
             {

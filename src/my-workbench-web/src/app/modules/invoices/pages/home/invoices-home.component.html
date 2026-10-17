@@ -279,18 +279,6 @@
 
 <!-- Template editor hidden for now -->
 
-@if (htmlPreviewUrl) {
-  <div class="preview-modal-overlay" (click)="closeHtmlPreview()">
-    <div class="preview-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>Invoice Preview</h2>
-        <button type="button" class="close-button" (click)="closeHtmlPreview()">✕</button>
-      </div>
-      <iframe class="preview-frame" [src]="htmlPreviewUrl"></iframe>
-    </div>
-  </div>
-}
-
 <div class="panel">
   <div class="toolbar">
     <h2>Recent invoices</h2>

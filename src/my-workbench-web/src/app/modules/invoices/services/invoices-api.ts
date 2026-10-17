@@ -80,8 +80,8 @@ export class InvoicesApiService extends ApiService {
   }
 
   previewInvoice(invoiceId: string) {
-    return this.getFile(`/api/invoices/${invoiceId}/preview`).pipe(
-      catchError(() => of(new Blob([], { type: 'application/pdf' })))
+    return this.get<{ html: string }>(`/api/invoices/${invoiceId}/preview`).pipe(
+      catchError(() => of(null))
     );
   }
 

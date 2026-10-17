@@ -324,25 +324,27 @@ Content-Type: application/pdf
 
 ### 9. Preview Invoice
 
-Generates a PDF preview of an invoice draft using the active template.
+Generates an HTML preview of an invoice draft using the active template.
 
 ```
-POST /api/invoices/{invoiceId}/preview
+GET /api/invoices/{invoiceId}/preview
 ```
 
 **Path Parameters**:
 - `invoiceId` (required): Invoice identifier (UUID)
 
 **Response: 200 OK**
+```json
+{
+  "html": "<!DOCTYPE html><html>...</html>"
+}
 ```
-Content-Type: application/pdf
-Content-Disposition: attachment; filename="invoice-preview.pdf"
-[PDF binary data]
-```
+
+The HTML response contains a complete, styled invoice document ready for display in a web view or modal.
 
 **Error Responses**:
 - `400 Bad Request`: Invoice not found or template not configured
-- `500 Internal Server Error`: PDF generation failed
+- `500 Internal Server Error`: HTML generation failed
 
 ---
 

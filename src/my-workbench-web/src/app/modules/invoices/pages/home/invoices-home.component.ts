@@ -1,6 +1,5 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { InvoicesApiService } from '../../services';
@@ -50,7 +49,6 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   templateLayoutSaved = false;
   savingTemplateLayout = false;
   templatePreviewUrl: string | null = null;
-  htmlPreviewUrl: string | SafeResourceUrl | null = null;
   private previewObjectUrl: string | null = null;
   private dragState: { index: number; mode: 'move' | 'resize'; startX: number; startY: number; originX: number; originY: number; originWidth: number; originHeight: number } | null = null;
 
@@ -61,7 +59,6 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   constructor(
     private readonly invoicesApi: InvoicesApiService,
     private readonly fb: FormBuilder,
-    private readonly sanitizer: DomSanitizer,
     private readonly cdr: ChangeDetectorRef,
     private readonly router: Router,
   ) {
@@ -276,7 +273,6 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.clearTemplatePreview();
-    this.closeHtmlPreview();
     this.dragState = null;
     window.removeEventListener('pointermove', this.handlePointerMove);
     window.removeEventListener('pointerup', this.handlePointerUp);
@@ -602,29 +598,23 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.actionMessage = '';
 
     this.invoicesApi.previewInvoice(invoiceId).subscribe({
-      next: (blob) => {
+      next: (response) => {
         this.previewingInvoice = false;
-        if (!blob || blob.size === 0) {
+        if (!response?.html || response.html.length === 0) {
           this.actionMessage = 'Preview unavailable for this invoice right now.';
           return;
         }
 
+        const blob = new Blob([response.html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
-        this.htmlPreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
-        this.actionMessage = 'Invoice preview loaded.';
+        window.open(url, '_blank');
+        this.actionMessage = 'Invoice preview opened in new tab.';
       },
       error: () => {
         this.previewingInvoice = false;
         this.actionMessage = 'The preview request failed.';
       },
     });
-  }
-
-  closeHtmlPreview(): void {
-    if (this.htmlPreviewUrl && typeof this.htmlPreviewUrl === 'string') {
-      URL.revokeObjectURL(this.htmlPreviewUrl);
-    }
-    this.htmlPreviewUrl = null;
   }
 
   generateInvoice(invoiceId: string): void {
