@@ -102,6 +102,10 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
         }
 
         this.selectedProfile = profile;
+
+        // Update line item columns based on profile configuration
+        this.selectedProfileLineItemColumns = this.convertLineItemColumnsToKeyValuePair(this.selectedProfile.lineItemColumns) || {};
+        this.updateLineItemColumns();
         
         // Populate form fields from the fetched profile
         this.draftForm.patchValue({
@@ -111,15 +115,11 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
           customerEmail: profile.issuerEmail || '',
         });
 
-        // Update line item columns based on profile configuration
-        this.selectedProfileLineItemColumns = this.convertLineItemColumnsToKeyValuePair(profile.lineItemColumns) || {};
-        const lineItemColumnKeys = Object.keys(this.selectedProfileLineItemColumns);
-        this.updateLineItemColumns(lineItemColumnKeys);
-        
+
         // Reset line items array with one empty line item using profile columns
         const lineItemsArray = this.draftForm.get('lineItems') as any;
         lineItemsArray.clear();
-        lineItemsArray.push(this.createLineItemGroup(lineItemColumnKeys)); 
+        lineItemsArray.push(this.createLineItemGroup()); 
         
         this.cdr.markForCheck();
       },
@@ -131,20 +131,18 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  private updateLineItemColumns(columns: string[]): void {
-    this.lineItemColumnLabels = {};
-    columns.forEach((col) => {
-      // Parse "name:type" format
-      const [columnName] = col.split(':');
-      const name = columnName.trim();
-      
-      const label = name
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
-        .replace(/[_-]+/g, ' ')
-        .trim();
+  private updateLineItemColumns(): void {
+    this.lineItemColumnLabels= {};
 
-      this.lineItemColumnLabels[name] = label.charAt(0).toUpperCase() + label.slice(1);
-    });
+    for (const [key, value] of Object.entries(this.selectedProfileLineItemColumns)) {
+        const name = key;
+        const columnLabel = name
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/[_-]+/g, ' ')
+          .trim();
+
+        this.lineItemColumnLabels[key] = columnLabel.charAt(0).toUpperCase() + columnLabel.slice(1);
+    }
   }
 
   /**
@@ -158,17 +156,14 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
    * Input (string): "Description:Text, Hours:Number, Rate:Number"
    * Output: { Description: "Text", Hours: "Number", Rate: "Number" }
    */
-  convertLineItemColumnsToKeyValuePair(columns?: string | string[]): Record<string, string> {
+  convertLineItemColumnsToKeyValuePair(columns?: string): Record<string, string> {
     let columnsList: string[] = [];
     
     // Handle both string and array formats
-    if (!columns) {
-      const selected = this.selectedProfile?.lineItemColumns;
-      columnsList = Array.isArray(selected) ? selected : (typeof selected === 'string' ? selected.split(',') : []);
-    } else if (typeof columns === 'string') {
+    if (typeof columns === 'string') {
       columnsList = columns.split(',');
     } else {
-      columnsList = columns;
+      columnsList = [];
     }
     
     const result: Record<string, string> = {};
@@ -183,9 +178,26 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     return result;
   }
 
-  getSelectedProfileColumns(): string[] {
-    // Extract just the column names (without types) from "name:type" format
-    return Object.keys(this.selectedProfileLineItemColumns || {});
+  getSelectedProfileColumns(): Record<string, string>{
+    // Convert the selectedProfileLineItemColumns object to an array of { name, type } objects
+    return this.selectedProfileLineItemColumns || {};
+  }
+
+  getSelectedProfileColumnNames(): string []{
+    // Convert the selectedProfileLineItemColumns object to an array of { name, type } objects
+    return Object.keys(this.selectedProfileLineItemColumns) || [] ;
+  }
+
+  getSelectedProfileColumnsAsArray(): Array<{key: string; value: string}> {
+    // Return columns as array maintaining insertion order (not alphabetical)
+    // This avoids the keyvalue pipe which sorts alphabetically
+    const columns: Array<{key: string; value: string}> = [];
+    if (this.selectedProfileLineItemColumns) {
+      for (const [key, value] of Object.entries(this.selectedProfileLineItemColumns)) {
+        columns.push({key, value});
+      }
+    }
+    return columns;
   }
 
   getInputTypeForColumn(columnName: string): string {
@@ -210,16 +222,12 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   getFormControlNameForColumn(columnName: string): string {
     // Extract just the name if it's in "name:type" format
     const name = columnName.includes(':') ? columnName.split(':')[0].trim() : columnName;
-    const lowerName = name.toLowerCase();
-    if (lowerName === 'rate') return 'unitPrice';
-    if (lowerName === 'hours') return 'quantity';
-    if (lowerName === 'total') return 'lineTotal';
-    return name.charAt(0).toLowerCase() + name.slice(1);
+    return columnName.charAt(0).toLowerCase() + name.slice(1);
   }
 
   calculateTotal(lineItem: any): number {
-    const hours = lineItem?.get('quantity')?.value || 0;
-    const rate = lineItem?.get('unitPrice')?.value || 0;
+    const hours = lineItem?.get('hours')?.value || 0;
+    const rate = lineItem?.get('rate')?.value || 0;
     return Number((hours * rate).toFixed(2));
   }
 
@@ -740,11 +748,13 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.savingProfile = true;
     const profileData = this.profileForm.getRawValue();
     
-    // Transform lineItemColumns from array of objects to "name:type" format
+    // Transform lineItemColumns from array of objects to "name:type, name:type" format string
     if (profileData.lineItemColumns && Array.isArray(profileData.lineItemColumns)) {
-      profileData.lineItemColumns = profileData.lineItemColumns.map((col: any) => `${col.name}:${col.type}`);
+      profileData.lineItemColumns = profileData.lineItemColumns
+        .map((col: any) => `${col.name}:${col.type}`)
+        .join(', ');
     } else {
-      profileData.lineItemColumns = [];
+      profileData.lineItemColumns = '';
     }
 
     if (this.editingProfileId) {
@@ -936,33 +946,33 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  private createLineItemGroup(columns?: string[]) {
+  private createLineItemGroup() {
     const group: Record<string, any> = {};
-    
-    if (columns && columns.length > 0) {
-      // Create form controls for each column based on profile configuration
-      columns.forEach((column) => {
-        const controlName = this.getFormControlNameForColumn(column);
-        const inputType = this.getInputTypeForColumn(column);
-        
-        if (column.toLowerCase() === 'total') {
-          // Total is calculated, so make it optional
-          group[controlName] = [0, [Validators.min(0)]];
-        } else if (inputType === 'decimal') {
-          group[controlName] = [0, [Validators.required, Validators.min(0)]];
-        } else if (inputType === 'date') {
-          group[controlName] = [''];
-        } else {
-          group[controlName] = ['', Validators.required];
-        }
-      });
-    } else {
-      // Default/fallback controls
+
+    if (!this.selectedProfileLineItemColumns || Object.keys(this.selectedProfileLineItemColumns).length === 0) {
+      // Fallback to default controls if no profile columns
       group['description'] = ['', Validators.required];
       group['quantity'] = [1, [Validators.required, Validators.min(1)]];
       group['unitPrice'] = [0, [Validators.required, Validators.min(0)]];
       group['discountPercent'] = [0, [Validators.min(0)]];
       group['taxRate'] = [0, [Validators.min(0)]];
+      return this.fb.nonNullable.group(group);
+    }
+
+    // Create form controls for each column in the order they appear in the Record
+    for (const [key, type] of Object.entries(this.selectedProfileLineItemColumns)) {
+      const controlName = this.getFormControlNameForColumn(key);
+      
+      if (key.toLowerCase() === 'total') {
+        // Total is calculated, so make it optional
+        group[controlName] = [0, [Validators.min(0)]];
+      } else if (type.toLowerCase() === 'number') {
+        group[controlName] = [0, [Validators.required, Validators.min(0)]];
+      } else if (type.toLowerCase() === 'date') {
+        group[controlName] = [''];
+      } else {
+        group[controlName] = ['', Validators.required];
+      }
     }
     
     return this.fb.nonNullable.group(group);

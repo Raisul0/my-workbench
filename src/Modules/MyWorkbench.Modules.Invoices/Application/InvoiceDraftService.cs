@@ -227,6 +227,7 @@ public class InvoiceDraftService
                 profile.DefaultTaxRate = profileData.DefaultTaxRate;
                 profile.DefaultTerms = profileData.DefaultTerms;
                 profile.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                profile.LineItemColumns = profileData.LineItemColumns;
 
                 _dbContext.BusinessProfiles.Update(profile);
             }

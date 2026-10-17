@@ -71,33 +71,33 @@
       }
     </div>
 
-    @if (selectedProfile && getSelectedProfileColumns().length > 0) {
+    @if (selectedProfile && getSelectedProfileColumns() ) {
       <div class="line-items-columns-info">
-        <p class="muted">Configured columns: {{ getSelectedProfileColumns().join(', ') }}</p>
+        <p class="muted">Configured columns: {{ getSelectedProfileColumnNames().join(',')}}</p>
       </div>
 
       <div class="line-items" formArrayName="lineItems">
         @for (lineItem of lineItems.controls; track $index; let index = $index) {
           <div class="line-item" [formGroupName]="index">
-            @for (column of getSelectedProfileColumns(); track column) {
-              @if (getInputTypeForColumn(column) === 'date') {
+            @for (item of getSelectedProfileColumnsAsArray(); track item.key) {
+              @if (item.value === 'date') {
                 <label>
-                  {{ lineItemColumnLabels[column] || column }}
-                  <input type="date" [formControlName]="getFormControlNameForColumn(column)" />
+                  {{ lineItemColumnLabels[item.key] || item.key }}
+                  <input type="date" [formControlName]="item.key" />
                 </label>
-              } @else if (getInputTypeForColumn(column) === 'decimal') {
+              } @else if (item.value === 'number') {
                 <label>
-                  {{ lineItemColumnLabels[column] || column }}
-                  @if (column.toLowerCase() === 'total') {
+                  {{ lineItemColumnLabels[item.key] || item.key }}
+                  @if (item.key.toLowerCase() === 'total') {
                     <input type="number" step="0.01" min="0" [value]="calculateTotal(lineItem)" disabled />
                   } @else {
-                    <input type="number" step="0.01" min="0" [formControlName]="getFormControlNameForColumn(column)" />
+                    <input type="number" step="0.01" min="0" [formControlName]="item.key" />
                   }
                 </label>
               } @else {
                 <label>
-                  {{ lineItemColumnLabels[column] || column }}
-                  <input type="text" [formControlName]="getFormControlNameForColumn(column)" />
+                  {{ lineItemColumnLabels[item.key] || item.key }}
+                  <input type="text" [formControlName]="item.key" />
                 </label>
               }
             }
