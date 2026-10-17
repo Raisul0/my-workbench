@@ -10,21 +10,9 @@ public class Invoice
     public DateOnly IssueDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     public DateOnly? DueDate { get; set; }
     public string CurrencyCode { get; set; } = "USD";
-    public string IssuerName { get; set; } = string.Empty;
-    public string IssuerAddress { get; set; } = string.Empty;
-    public string IssuerEmail { get; set; } = string.Empty;
-    public string IssuerPhone { get; set; } = string.Empty;
-    public string IssuerRegistrationNumber { get; set; } = string.Empty;
-    public string IssuerTaxNumber { get; set; } = string.Empty;
-    public string CustomerName { get; set; } = string.Empty;
-    public string CustomerAddress { get; set; } = string.Empty;
-    public string CustomerEmail { get; set; } = string.Empty;
-    public string CustomerPhone { get; set; } = string.Empty;
-    public string CustomerRegistrationNumber { get; set; } = string.Empty;
-    public string CustomerTaxNumber { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public string Terms { get; set; } = string.Empty;
-    public string LineItemColumns { get; set; } = "itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number";
+    public string LineItemColumns { get; set; } = "description:text,total:number";
     public decimal Subtotal { get; set; }
     public decimal DiscountTotal { get; set; }
     public decimal TaxTotal { get; set; }
@@ -36,5 +24,6 @@ public class Invoice
     public DateTimeOffset? GeneratedAtUtc { get; set; }
     public byte[]? RowVersion { get; set; }
 
+    public BusinessProfile? BusinessProfile { get; set; }
     public ICollection<InvoiceLineItem> LineItems { get; set; } = new List<InvoiceLineItem>();
 }

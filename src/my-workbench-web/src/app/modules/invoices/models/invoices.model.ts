@@ -14,10 +14,8 @@ export interface InvoiceSummary {
 
 export interface InvoiceDraftLineItem {
   description: string;
-  quantity: number;
-  unitPrice: number;
-  discountPercent: number;
-  taxRate: number;
+  total: number;
+  otherColumns: string;
 }
 
 export interface InvoiceTemplateSummary {
@@ -60,17 +58,13 @@ export interface TemplateLayoutDocument {
 }
 
 export interface CreateInvoiceDraftRequest {
-  customerName: string;
-  customerAddress?: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  customerRegistrationNumber?: string;
-  customerTaxNumber?: string;
+  businessProfileId?: string;
   notes?: string;
   terms?: string;
   currencyCode?: string;
   issueDate?: string;
   dueDate?: string | null;
+  lineItemColumns?: string[];
   lineItems: InvoiceDraftLineItem[];
 }
 
@@ -95,4 +89,3 @@ export interface BusinessProfileDetail extends BusinessProfileSummary {
   lineItemColumns?: string;
   createdAtUtc: string;
 }
-

@@ -3,12 +3,6 @@ namespace MyWorkbench.Modules.Invoices.Contracts;
 public sealed class CreateInvoiceDraftRequest
 {
     public Guid? BusinessProfileId { get; set; }
-    public string CustomerName { get; set; } = string.Empty;
-    public string CustomerAddress { get; set; } = string.Empty;
-    public string CustomerEmail { get; set; } = string.Empty;
-    public string CustomerPhone { get; set; } = string.Empty;
-    public string CustomerRegistrationNumber { get; set; } = string.Empty;
-    public string CustomerTaxNumber { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public string Terms { get; set; } = string.Empty;
     public string CurrencyCode { get; set; } = "USD";
@@ -21,8 +15,6 @@ public sealed class CreateInvoiceDraftRequest
 public sealed class CreateInvoiceLineItemRequest
 {
     public string Description { get; set; } = string.Empty;
-    public decimal Quantity { get; set; }
-    public decimal UnitPrice { get; set; }
-    public decimal DiscountPercent { get; set; }
-    public decimal TaxRate { get; set; }
+    public decimal Total { get; set; }
+    public string OtherColumns { get; set; } = string.Empty;
 }

@@ -43,11 +43,9 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
     private static string BuildHtmlInvoice(InvoiceTemplateVersion version, Invoice? invoice)
     {
         var invoiceNumber = invoice?.InvoiceNumber ?? "PREVIEW-001";
-        var issuerName = invoice?.IssuerName ?? "Your Business Name";
-        var issuerAddress = invoice?.IssuerAddress ?? "123 Business Street";
-        var issuerEmail = invoice?.IssuerEmail ?? "billing@example.com";
-        var customerName = invoice?.CustomerName ?? "Customer Name";
-        var customerAddress = invoice?.CustomerAddress ?? "123 Customer Street";
+        var profileName = invoice?.BusinessProfile?.IssuerName ?? "Customer Name";
+        var profileAddress = invoice?.BusinessProfile?.IssuerAddress ?? string.Empty;
+        var profileEmail = invoice?.BusinessProfile?.IssuerEmail ?? string.Empty;
         var issueDate = invoice?.IssueDate.ToString("MMM d, yyyy") ?? System.DateTime.Now.ToString("MMM d, yyyy");
         var dueDate = invoice?.DueDate?.ToString("MMM d, yyyy") ?? "Upon receipt";
         var currency = invoice?.CurrencyCode ?? "USD";
@@ -56,7 +54,7 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         var taxTotal = invoice?.TaxTotal ?? 0m;
         var grandTotal = invoice?.GrandTotal ?? 0m;
         var lineItems = invoice?.LineItems ?? new List<InvoiceLineItem>();
-        var orderedColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(invoice?.LineItemColumns);
+        var orderedColumns = ParseLineItemColumns(invoice?.LineItemColumns);
 
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
@@ -105,9 +103,9 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         sb.AppendLine("    <div class=\"header\">");
         sb.AppendLine("      <div class=\"issuer-info\">");
         sb.AppendLine("        <h1>Invoice</h1>");
-        sb.Append("        <p><strong>").Append(System.Net.WebUtility.HtmlEncode(issuerName)).AppendLine("</strong></p>");
-        sb.Append("        <p>").Append(System.Net.WebUtility.HtmlEncode(issuerAddress)).AppendLine("</p>");
-        sb.Append("        <p>").Append(System.Net.WebUtility.HtmlEncode(issuerEmail)).AppendLine("</p>");
+        sb.Append("        <p><strong>").Append(System.Net.WebUtility.HtmlEncode(profileName)).AppendLine("</strong></p>");
+        sb.Append("        <p>").Append(System.Net.WebUtility.HtmlEncode(profileAddress)).AppendLine("</p>");
+        sb.Append("        <p>").Append(System.Net.WebUtility.HtmlEncode(profileEmail)).AppendLine("</p>");
         sb.AppendLine("      </div>");
         sb.AppendLine("      <div class=\"invoice-meta\">");
         sb.Append("        <div class=\"invoice-number\">#").Append(System.Net.WebUtility.HtmlEncode(invoiceNumber)).AppendLine("</div>");
@@ -127,16 +125,15 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         sb.AppendLine("      <div class=\"party-section\">");
         sb.AppendLine("        <h3>Bill To</h3>");
         sb.AppendLine("        <div class=\"party-details\">");
-        sb.Append("          <p><strong>").Append(System.Net.WebUtility.HtmlEncode(customerName)).AppendLine("</strong></p>");
-        sb.Append("          <p>").Append(System.Net.WebUtility.HtmlEncode(customerAddress)).AppendLine("</p>");
+        sb.Append("          <p><strong>").Append(System.Net.WebUtility.HtmlEncode(profileName)).AppendLine("</strong></p>");
+        sb.Append("          <p>").Append(System.Net.WebUtility.HtmlEncode(profileAddress)).AppendLine("</p>");
         sb.AppendLine("        </div>");
         sb.AppendLine("      </div>");
         sb.AppendLine("      <div class=\"party-section\">");
         sb.AppendLine("        <h3>From</h3>");
         sb.AppendLine("        <div class=\"party-details\">");
-        sb.Append("          <p><strong>").Append(System.Net.WebUtility.HtmlEncode(issuerName)).AppendLine("</strong></p>");
-        sb.Append("          <p>").Append(System.Net.WebUtility.HtmlEncode(issuerAddress)).AppendLine("</p>");
-        sb.Append("          <p>").Append(System.Net.WebUtility.HtmlEncode(issuerEmail)).AppendLine("</p>");
+        sb.AppendLine("          <p><strong>My Workbench</strong></p>");
+        sb.AppendLine("          <p>Generated invoice document</p>");
         sb.AppendLine("        </div>");
         sb.AppendLine("      </div>");
         sb.AppendLine("    </div>");
@@ -148,8 +145,8 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
 
         foreach (var column in orderedColumns)
         {
-            var alignment = IsRightAlignedColumn(column) ? " style=\"text-align: right;\"" : string.Empty;
-            var label = InvoiceLineItemColumnCatalog.Labels.TryGetValue(column, out var mappedLabel) ? mappedLabel : column;
+            var alignment = IsRightAlignedColumn(column.Name, column.Type) ? " style=\"text-align: right;\"" : string.Empty;
+            var label = ToDisplayLabel(column.Name);
             sb.Append("            <th").Append(alignment).Append(">")
                 .Append(System.Net.WebUtility.HtmlEncode(label))
                 .AppendLine("</th>");
@@ -165,8 +162,8 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
 
             foreach (var column in orderedColumns)
             {
-                var alignment = IsRightAlignedColumn(column) ? " style=\"text-align: right;\"" : string.Empty;
-                var cellValue = BuildLineItemCell(column, pair.li, pair.index, customerName, issueDate, currency);
+                var alignment = IsRightAlignedColumn(column.Name, column.Type) ? " style=\"text-align: right;\"" : string.Empty;
+                var cellValue = BuildLineItemCell(column, pair.li, pair.index, issueDate, currency);
                 sb.Append("            <td").Append(alignment).Append(">")
                     .Append(System.Net.WebUtility.HtmlEncode(cellValue))
                     .AppendLine("</td>");
@@ -217,24 +214,107 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         return sb.ToString();
     }
 
-    private static bool IsRightAlignedColumn(string column)
+    private static bool IsRightAlignedColumn(string columnName, string columnType)
     {
-        return column is InvoiceLineItemColumnCatalog.Hours or InvoiceLineItemColumnCatalog.Rate or InvoiceLineItemColumnCatalog.Total;
+        return columnType.Equals("number", StringComparison.OrdinalIgnoreCase)
+               || columnName.Equals("total", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string BuildLineItemCell(string column, InvoiceLineItem lineItem, int index, string customerName, string issueDate, string currency)
+    private static string BuildLineItemCell((string Name, string Type) column, InvoiceLineItem lineItem, int index, string issueDate, string currency)
     {
-        return column switch
+        if (column.Name.Equals("description", StringComparison.OrdinalIgnoreCase))
         {
-            var value when value == InvoiceLineItemColumnCatalog.ItemNo => (index + 1).ToString(),
-            var value when value == InvoiceLineItemColumnCatalog.Date => issueDate,
-            var value when value == InvoiceLineItemColumnCatalog.Client => customerName,
-            var value when value == InvoiceLineItemColumnCatalog.Project => string.Empty,
-            var value when value == InvoiceLineItemColumnCatalog.Description => lineItem.Description,
-            var value when value == InvoiceLineItemColumnCatalog.Hours => lineItem.Quantity.ToString("F2"),
-            var value when value == InvoiceLineItemColumnCatalog.Rate => $"{currency} {lineItem.UnitPrice:F2}",
-            var value when value == InvoiceLineItemColumnCatalog.Total => $"{currency} {lineItem.LineTotal:F2}",
-            _ => string.Empty
-        };
+            return lineItem.Description;
+        }
+
+        if (column.Name.Equals("total", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{currency} {lineItem.Total:F2}";
+        }
+
+        if (column.Name.Equals("itemNo", StringComparison.OrdinalIgnoreCase))
+        {
+            return (index + 1).ToString();
+        }
+
+        if (column.Name.Equals("date", StringComparison.OrdinalIgnoreCase))
+        {
+            return issueDate;
+        }
+
+        var otherColumns = ParseOtherColumns(lineItem.OtherColumns);
+        return otherColumns.TryGetValue(column.Name, out var value) ? value : string.Empty;
+    }
+
+    private static IReadOnlyList<(string Name, string Type)> ParseLineItemColumns(string? columnsCsv)
+    {
+        var columns = new List<(string Name, string Type)>();
+        if (string.IsNullOrWhiteSpace(columnsCsv))
+        {
+            columns.Add(("description", "text"));
+            columns.Add(("total", "number"));
+            return columns;
+        }
+
+        foreach (var segment in columnsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var parts = segment.Split(':', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length == 0 || string.IsNullOrWhiteSpace(parts[0]))
+            {
+                continue;
+            }
+
+            var name = parts[0].Trim();
+            var type = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : "text";
+            columns.Add((name, type));
+        }
+
+        if (!columns.Any(c => c.Name.Equals("description", StringComparison.OrdinalIgnoreCase)))
+        {
+            columns.Insert(0, ("description", "text"));
+        }
+
+        if (!columns.Any(c => c.Name.Equals("total", StringComparison.OrdinalIgnoreCase)))
+        {
+            columns.Add(("total", "number"));
+        }
+
+        return columns;
+    }
+
+    private static Dictionary<string, string> ParseOtherColumns(string? otherColumns)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(otherColumns))
+        {
+            return result;
+        }
+
+        foreach (var segment in otherColumns.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var parts = segment.Split(':', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[0]))
+            {
+                continue;
+            }
+
+            result[parts[0].Trim()] = parts[1].Trim();
+        }
+
+        return result;
+    }
+
+    private static string ToDisplayLabel(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var spaced = value
+            .Replace("_", " ", StringComparison.Ordinal)
+            .Replace("-", " ", StringComparison.Ordinal);
+        spaced = System.Text.RegularExpressions.Regex.Replace(spaced, "([a-z])([A-Z])", "$1 $2");
+        return char.ToUpperInvariant(spaced[0]) + spaced[1..];
     }
 }

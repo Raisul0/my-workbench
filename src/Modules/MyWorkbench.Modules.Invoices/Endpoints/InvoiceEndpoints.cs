@@ -36,7 +36,7 @@ public static class InvoiceEndpoints
                 invoice.CurrencyCode,
                 invoice.GrandTotal,
                 invoice.IssueDate,
-                invoice.CustomerName
+                CustomerName = invoice.BusinessProfile?.IssuerName ?? string.Empty
             }));
         });
 
@@ -45,11 +45,6 @@ public static class InvoiceEndpoints
             if (request is null)
             {
                 return Results.BadRequest(new { message = "Request body is required." });
-            }
-
-            if (string.IsNullOrWhiteSpace(request.CustomerName))
-            {
-                return Results.BadRequest(new { message = "Customer name is required." });
             }
 
             if (request.LineItems is null || request.LineItems.Count == 0)
@@ -66,7 +61,8 @@ public static class InvoiceEndpoints
                 invoice.Status,
                 invoice.GrandTotal,
                 invoice.CreatedAtUtc,
-                LineItemColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(invoice.LineItemColumns)
+                LineItemColumns = invoice.LineItemColumns
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             });
         });
 
@@ -387,7 +383,7 @@ public static class InvoiceEndpoints
         {
             return Results.BadRequest(new { message = ex.Message });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return Results.InternalServerError();
         }
@@ -410,4 +406,3 @@ public static class InvoiceEndpoints
         }));
     }
 }
-

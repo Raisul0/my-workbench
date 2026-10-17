@@ -69,10 +69,12 @@ GET /api/invoices
     "currencyCode": "USD",
     "grandTotal": 1500.00,
     "issueDate": "2024-01-15",
-    "customerName": "Client Name"
+    "customerName": "Acme Corp"
   }
 ]
 ```
+
+`customerName` is derived from the linked Business Profile name.
 
 **Status Values**:
 - `0` = Draft
@@ -93,27 +95,19 @@ Content-Type: application/json
 ```json
 {
   "businessProfileId": "550e8400-e29b-41d4-a716-446655440000",
-  "customerName": "Client Name",
-  "customerAddress": "123 Main St, City, State",
-  "customerEmail": "client@example.com",
-  "customerPhone": "+1-555-0000",
-  "customerRegistrationNumber": "REG123",
-  "customerTaxNumber": "TAX456",
   "notes": "Invoice notes here",
   "currencyCode": "USD",
   "terms": "Payment due within 30 days",
   "issueDate": "2024-01-15",
   "dueDate": "2024-02-15",
+  "lineItemColumns": ["description:text", "hours:number", "rate:number", "total:number"],
   "lineItems": [
     {
       "description": "Web Development Services",
-      "quantity": 10,
-      "unitPrice": 150.00,
-      "discountPercent": 0,
-      "taxRate": 0.1
+      "total": 1500.00,
+      "otherColumns": "hours: 10, rate: 150.00"
     }
-  ],
-  "lineItemColumns": ["itemNo", "date", "description", "hours", "rate", "total"]
+  ]
 }
 ```
 
@@ -124,28 +118,25 @@ Content-Type: application/json
   "businessProfileId": "550e8400-e29b-41d4-a716-446655440000",
   "invoiceNumber": "INV-100",
   "status": 0,
-  "grandTotal": 1650.00,
+  "grandTotal": 1500.00,
   "createdAtUtc": "2024-01-15T10:00:00Z",
-  "lineItemColumns": ["itemNo", "date", "description", "hours", "rate", "total"]
+  "lineItemColumns": ["description:text", "hours:number", "rate:number", "total:number"]
 }
 ```
 
 **Validation Errors: 400 Bad Request**
 ```json
 {
-  "message": "Customer name is required." | "At least one line item is required."
+  "message": "At least one line item is required."
 }
 ```
 
-**Available Line Item Columns**:
-- `itemNo` - Item number
-- `date` - Date field
-- `client` - Client name
-- `project` - Project name
-- `description` - Line item description
-- `hours` - Hours/quantity
-- `rate` - Unit price/rate
-- `total` - Line total
+**Line Item Columns and Values**:
+- `lineItemColumns` uses profile-defined `name:type` values (for example `"description:text"`).
+- `lineItems[].otherColumns` stores non-core values as aggregated text.
+- `lineItems[].otherColumns` format: `"columnName: value, columnName: value"`.
+- `lineItems[].total` is required for each line item.
+- `invoice.grandTotal` is calculated as the sum of all `lineItems[].total`.
 
 ---
 
@@ -664,21 +655,19 @@ No response body on success.
 ```json
 {
   "description": "string",
-  "quantity": "number",
-  "unitPrice": "number",
-  "discountPercent": "number (0-100)",
-  "taxRate": "number (0-1)"
+  "total": "number",
+  "otherColumns": "string (format: \"columnName: value, columnName: value\")"
 }
 ```
 
 ### Business Profile
-Contains issuer information and default settings for all invoices created from this profile.
+Acts as the customer profile and default settings source for invoices linked to that profile.
 
 ---
 
 ## Best Practices
 
-1. **Always provided required fields** - Customer name and at least one line item are mandatory for draft creation
+1. **Always provide required fields** - A valid `businessProfileId` and at least one line item are mandatory for draft creation
 2. **Use UTC timestamps** - All timestamps are in UTC timezone
 3. **Handle pagination** - Currently list endpoints return all records; implement pagination on large datasets
 4. **Idempotency** - POST endpoints are idempotent; retrying with same data creates duplicates

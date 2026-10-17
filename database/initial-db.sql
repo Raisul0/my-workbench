@@ -56,7 +56,7 @@ IF COL_LENGTH(N'dbo.BusinessProfiles', N'LineItemColumns') IS NULL
 BEGIN
     ALTER TABLE dbo.BusinessProfiles
         ADD LineItemColumns NVARCHAR(256) NOT NULL
-            CONSTRAINT DF_BusinessProfiles_LineItemColumns DEFAULT N'itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number';
+            CONSTRAINT DF_BusinessProfiles_LineItemColumns DEFAULT N'description:text,total:number';
 END
 GO
 
@@ -71,18 +71,6 @@ BEGIN
         IssueDate DATE NOT NULL,
         DueDate DATE NULL,
         CurrencyCode NVARCHAR(8) NOT NULL,
-        IssuerName NVARCHAR(200) NOT NULL,
-        IssuerAddress NVARCHAR(MAX) NOT NULL,
-        IssuerEmail NVARCHAR(200) NOT NULL,
-        IssuerPhone NVARCHAR(50) NOT NULL,
-        IssuerRegistrationNumber NVARCHAR(200) NOT NULL,
-        IssuerTaxNumber NVARCHAR(200) NOT NULL,
-        CustomerName NVARCHAR(200) NOT NULL,
-        CustomerAddress NVARCHAR(MAX) NOT NULL,
-        CustomerEmail NVARCHAR(200) NOT NULL,
-        CustomerPhone NVARCHAR(50) NOT NULL,
-        CustomerRegistrationNumber NVARCHAR(200) NOT NULL,
-        CustomerTaxNumber NVARCHAR(200) NOT NULL,
         Notes NVARCHAR(MAX) NOT NULL,
         Terms NVARCHAR(MAX) NOT NULL,
         LineItemColumns NVARCHAR(256) NOT NULL,
@@ -122,7 +110,7 @@ BEGIN
         100,
         0,
         N'Payment due within 14 days.',
-        N'itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number',
+        N'description:text,total:number',
         SYSDATETIMEOFFSET(),
         SYSDATETIMEOFFSET()
     );
@@ -140,7 +128,7 @@ IF COL_LENGTH(N'dbo.Invoices', N'LineItemColumns') IS NULL
 BEGIN
     ALTER TABLE dbo.Invoices
         ADD LineItemColumns NVARCHAR(256) NOT NULL
-            CONSTRAINT DF_Invoices_LineItemColumns DEFAULT N'itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number';
+            CONSTRAINT DF_Invoices_LineItemColumns DEFAULT N'description:text,total:number';
 END
 GO
 
@@ -189,14 +177,8 @@ BEGIN
         InvoiceId UNIQUEIDENTIFIER NOT NULL,
         SortOrder INT NOT NULL,
         Description NVARCHAR(1000) NOT NULL,
-        Quantity DECIMAL(18,4) NOT NULL,
-        UnitPrice DECIMAL(18,4) NOT NULL,
-        DiscountPercent DECIMAL(18,4) NOT NULL,
-        TaxRate DECIMAL(18,4) NOT NULL,
-        LineSubtotal DECIMAL(18,4) NOT NULL,
-        DiscountAmount DECIMAL(18,4) NOT NULL,
-        TaxAmount DECIMAL(18,4) NOT NULL,
-        LineTotal DECIMAL(18,4) NOT NULL,
+        Total DECIMAL(18,4) NOT NULL,
+        OtherColumns NVARCHAR(4000) NOT NULL,
         CONSTRAINT FK_InvoiceLineItems_Invoices FOREIGN KEY (InvoiceId) REFERENCES dbo.Invoices (Id) ON DELETE CASCADE
     );
 END
@@ -381,7 +363,7 @@ BEGIN
         100,
         0,
         N'Payment due within 14 days.',
-        N'itemNo,date,client,project,description,hours,rate,total',
+        N'description:text,total:number',
         SYSDATETIMEOFFSET(),
         SYSDATETIMEOFFSET()
     );

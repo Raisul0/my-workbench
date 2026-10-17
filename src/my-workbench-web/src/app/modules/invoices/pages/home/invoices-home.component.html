@@ -83,21 +83,17 @@
               @if (item.value === 'date') {
                 <label>
                   {{ lineItemColumnLabels[item.key] || item.key }}
-                  <input type="date" [formControlName]="item.key" />
+                  <input type="date" [formControlName]="getFormControlNameForColumn(item.key)" />
                 </label>
               } @else if (item.value === 'number') {
                 <label>
                   {{ lineItemColumnLabels[item.key] || item.key }}
-                  @if (item.key.toLowerCase() === 'total') {
-                    <input type="number" step="0.01" min="0" [value]="calculateTotal(lineItem)" disabled />
-                  } @else {
-                    <input type="number" step="0.01" min="0" [formControlName]="item.key" />
-                  }
+                  <input type="number" step="0.01" min="0" [formControlName]="getFormControlNameForColumn(item.key)" />
                 </label>
               } @else {
                 <label>
                   {{ lineItemColumnLabels[item.key] || item.key }}
-                  <input type="text" [formControlName]="item.key" />
+                  <input type="text" [formControlName]="getFormControlNameForColumn(item.key)" />
                 </label>
               }
             }
@@ -237,11 +233,6 @@
     <label>
       Source file
       <input type="file" accept=".pdf,image/png,image/jpeg" (change)="onTemplateFileChange($event)" />
-    </label>
-
-    <label>
-      Background Image (PNG/JPG)
-      <input type="file" accept="image/png,image/jpeg" (change)="onBackgroundImageChange($event)" />
     </label>
 
     <div class="form-actions template-actions">

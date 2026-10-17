@@ -52,16 +52,16 @@ public class InvoiceDraftService
             }
 
             var orderedColumns = ResolveLineItemColumns(request.LineItemColumns ?? [], profile);
-            var columnsCsv = InvoiceLineItemColumnCatalog.Serialize(orderedColumns);
+            var columnsCsv = orderedColumns.Count == 0
+                ? profile.LineItemColumns
+                : string.Join(',', orderedColumns);
 
             var lineItems = request.LineItems
                 .Select((line, index) => new InvoiceLineItem
                 {
                     Description = line.Description,
-                    Quantity = line.Quantity,
-                    UnitPrice = line.UnitPrice,
-                    DiscountPercent = line.DiscountPercent,
-                    TaxRate = line.TaxRate,
+                    Total = line.Total,
+                    OtherColumns = line.OtherColumns?.Trim() ?? string.Empty,
                     SortOrder = index,
                     InvoiceId = Guid.Empty
                 })
@@ -74,18 +74,6 @@ public class InvoiceDraftService
                 InvoiceNumber = InvoiceNumberAllocator.NextNumber(profile),
                 Status = InvoiceStatus.Draft,
                 CurrencyCode = string.IsNullOrWhiteSpace(request.CurrencyCode) ? profile.DefaultCurrencyCode : request.CurrencyCode,
-                IssuerName = profile.IssuerName,
-                IssuerAddress = profile.IssuerAddress,
-                IssuerEmail = profile.IssuerEmail,
-                IssuerPhone = profile.IssuerPhone,
-                IssuerRegistrationNumber = profile.IssuerRegistrationNumber,
-                IssuerTaxNumber = profile.IssuerTaxNumber,
-                CustomerName = request.CustomerName,
-                CustomerAddress = request.CustomerAddress,
-                CustomerEmail = request.CustomerEmail,
-                CustomerPhone = request.CustomerPhone,
-                CustomerRegistrationNumber = request.CustomerRegistrationNumber,
-                CustomerTaxNumber = request.CustomerTaxNumber,
                 Notes = request.Notes,
                 Terms = string.IsNullOrWhiteSpace(request.Terms) ? profile.DefaultTerms : request.Terms,
                 LineItemColumns = columnsCsv,
@@ -125,6 +113,7 @@ public class InvoiceDraftService
         {
             var result = await _dbContext.Invoices
                 .AsNoTracking()
+                .Include(x => x.BusinessProfile)
                 .Include(x => x.LineItems)
                 .OrderByDescending(x => x.CreatedAtUtc)
                 .ToListAsync(cancellationToken);
@@ -209,11 +198,12 @@ public class InvoiceDraftService
             if (profileId.HasValue)
             {
                 // Update existing profile
-                profile = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(x => x.Id == profileId.Value, cancellationToken);
-                if (profile is null)
+                var existingProfile = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(x => x.Id == profileId.Value, cancellationToken);
+                if (existingProfile is null)
                 {
                     throw new InvalidOperationException("Business profile not found.");
                 }
+                profile = existingProfile;
 
                 profile.IssuerName = profileData.IssuerName;
                 profile.IssuerAddress = profileData.IssuerAddress;
@@ -248,7 +238,9 @@ public class InvoiceDraftService
                     InvoicePrefix = profileData.InvoicePrefix,
                     DefaultTaxRate = profileData.DefaultTaxRate,
                     DefaultTerms = profileData.DefaultTerms,
-                    LineItemColumns = InvoiceLineItemColumnCatalog.Serialize(InvoiceLineItemColumnCatalog.DefaultOrderedColumns),
+                    LineItemColumns = string.IsNullOrWhiteSpace(profileData.LineItemColumns)
+                        ? "description:text,total:number"
+                        : profileData.LineItemColumns,
                     CreatedAtUtc = DateTimeOffset.UtcNow,
                     UpdatedAtUtc = DateTimeOffset.UtcNow
                 };
@@ -345,7 +337,12 @@ public class InvoiceDraftService
     {
         if (requestedColumns.Count == 0)
         {
-            return InvoiceLineItemColumnCatalog.ParseOrDefault(profile.LineItemColumns);
+            return profile.LineItemColumns
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(column => column.Trim())
+                .Where(column => column.Length > 0)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
         }
 
         var normalizedColumns = new List<string>(requestedColumns.Count);
@@ -353,9 +350,11 @@ public class InvoiceDraftService
 
         foreach (var requested in requestedColumns)
         {
-            if (!InvoiceLineItemColumnCatalog.TryNormalize(requested, out var normalized))
+            var normalized = requested?.Trim() ?? string.Empty;
+
+            if (normalized.Length == 0)
             {
-                throw new InvalidOperationException($"Unsupported line item column '{requested}'.");
+                continue;
             }
 
             if (!seen.Add(normalized))
@@ -366,7 +365,7 @@ public class InvoiceDraftService
             normalizedColumns.Add(normalized);
         }
 
-        profile.LineItemColumns = InvoiceLineItemColumnCatalog.Serialize(normalizedColumns);
+        profile.LineItemColumns = string.Join(',', normalizedColumns);
         profile.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         return normalizedColumns;

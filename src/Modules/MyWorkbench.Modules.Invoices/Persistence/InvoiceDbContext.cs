@@ -44,6 +44,10 @@ public class InvoiceDbContext : DbContext
             entity.Property(x => x.TaxTotal).HasPrecision(18, 4);
             entity.Property(x => x.GrandTotal).HasPrecision(18, 4);
             entity.Property(x => x.RowVersion).IsRowVersion();
+            entity.HasOne(x => x.BusinessProfile)
+                .WithMany()
+                .HasForeignKey(x => x.BusinessProfileId)
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.LineItems).WithOne(x => x.Invoice).HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -51,14 +55,8 @@ public class InvoiceDbContext : DbContext
         {
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Description).HasMaxLength(1000);
-            entity.Property(x => x.Quantity).HasPrecision(18, 4);
-            entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
-            entity.Property(x => x.DiscountPercent).HasPrecision(18, 4);
-            entity.Property(x => x.TaxRate).HasPrecision(18, 4);
-            entity.Property(x => x.LineSubtotal).HasPrecision(18, 4);
-            entity.Property(x => x.DiscountAmount).HasPrecision(18, 4);
-            entity.Property(x => x.TaxAmount).HasPrecision(18, 4);
-            entity.Property(x => x.LineTotal).HasPrecision(18, 4);
+            entity.Property(x => x.Total).HasPrecision(18, 4);
+            entity.Property(x => x.OtherColumns).HasMaxLength(4000);
         });
 
         modelBuilder.Entity<InvoiceTemplate>(entity =>
