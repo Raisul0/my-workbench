@@ -44,6 +44,13 @@ builder.Services.AddOpenApi();
 var invoiceEnabled = builder.Configuration.GetValue("Modules:Invoices:Enabled", true);
 builder.Services.AddInvoicesModule(builder.Configuration, invoiceEnabled);
 
+// Configure JSON serialization to use camelCase for API responses
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.PropertyNameCaseInsensitive = true;
+});
+
 var app = builder.Build();
 
 var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("MyWorkbench.Startup");

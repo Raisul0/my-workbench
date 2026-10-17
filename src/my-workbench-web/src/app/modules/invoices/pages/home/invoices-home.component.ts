@@ -4,7 +4,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { InvoicesApiService } from '../../services';
-import { InvoiceSummary, InvoiceTemplateSummary, TemplateFieldBinding } from '../../models';
+import { BusinessProfileDetail, BusinessProfileSummary, InvoiceSummary, InvoiceTemplateSummary, TemplateFieldBinding } from '../../models';
 
 @Component({
   selector: 'app-invoices-home',
@@ -28,8 +28,9 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   deletingInvoice = false;
   settings: any = null;
   settingsList: any[] = [];
-  selectedProfileForEdit: any = null;
-  selectedProfile: any = null;
+  selectedProfileForEdit: BusinessProfileDetail | null = null;
+  selectedProfile: BusinessProfileDetail | null = null;
+  selectedProfileLineItemColumns: Record<string, string> = {};
   lineItemColumnLabels: Record<string, string> = {};
   templates: InvoiceTemplateSummary[] = [];
   templateName = '';
@@ -54,6 +55,8 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   private dragState: { index: number; mode: 'move' | 'resize'; startX: number; startY: number; originX: number; originY: number; originWidth: number; originHeight: number } | null = null;
 
   draftForm!: any;
+  profiles: BusinessProfileSummary  [] = [];
+  protected readonly JSON = JSON;
 
   constructor(
     private readonly invoicesApi: InvoicesApiService,
@@ -74,34 +77,127 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadInvoices();
-    this.loadSettings();
-    this.loadTemplates();
     this.loadProfiles();
+    //this.loadSettings();
+    this.loadTemplates();
+
   }
 
-  onProfileSelected(profile: any): void {
-    this.selectedProfile = profile;
-    this.updateLineItemColumns(profile.lineItemColumns || []);
-    this.cdr.markForCheck();
+  onProfileSelected(profileId: string): void {
+    if (!profileId) {
+      this.selectedProfile = null;
+      this.lineItemColumnLabels = {};
+      this.cdr.markForCheck();
+      return;
+    }
+
+    // Fetch full profile details from backend
+    this.invoicesApi.getProfile(profileId).subscribe({
+      next: (profile) => {
+        if (!profile) {
+          this.selectedProfile = null;
+          this.lineItemColumnLabels = {};
+          this.cdr.markForCheck();
+          return;
+        }
+
+        this.selectedProfile = profile;
+        
+        // Populate form fields from the fetched profile
+        this.draftForm.patchValue({
+          customerName: profile.issuerName || '',
+          currencyCode: profile.defaultCurrencyCode || 'USD',
+          customerAddress: profile.issuerAddress || '',
+          customerEmail: profile.issuerEmail || '',
+        });
+
+        // Update line item columns based on profile configuration
+        this.selectedProfileLineItemColumns = this.convertLineItemColumnsToKeyValuePair(profile.lineItemColumns) || {};
+        const lineItemColumnKeys = Object.keys(this.selectedProfileLineItemColumns);
+        this.updateLineItemColumns(lineItemColumnKeys);
+        
+        // Reset line items array with one empty line item using profile columns
+        const lineItemsArray = this.draftForm.get('lineItems') as any;
+        lineItemsArray.clear();
+        lineItemsArray.push(this.createLineItemGroup(lineItemColumnKeys)); 
+        
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.selectedProfile = null;
+        this.lineItemColumnLabels = {};
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   private updateLineItemColumns(columns: string[]): void {
     this.lineItemColumnLabels = {};
     columns.forEach((col) => {
-      const label = col
+      // Parse "name:type" format
+      const [columnName] = col.split(':');
+      const name = columnName.trim();
+      
+      const label = name
         .replace(/([a-z])([A-Z])/g, '$1 $2')
         .replace(/[_-]+/g, ' ')
         .trim();
 
-      this.lineItemColumnLabels[col] = label.charAt(0).toUpperCase() + label.slice(1);
+      this.lineItemColumnLabels[name] = label.charAt(0).toUpperCase() + label.slice(1);
     });
   }
 
+  /**
+   * Converts lineItemColumns from "name:type" format to key-value pair object
+   * Handles both string (comma-separated) and array formats
+   * @param columns - Array of strings or comma-separated string in "name:type" format
+   * @returns Object with column names as keys and types as values
+   * 
+   * @example
+   * Input (array): ["Description:Text", "Hours:Number", "Rate:Number"]
+   * Input (string): "Description:Text, Hours:Number, Rate:Number"
+   * Output: { Description: "Text", Hours: "Number", Rate: "Number" }
+   */
+  convertLineItemColumnsToKeyValuePair(columns?: string | string[]): Record<string, string> {
+    let columnsList: string[] = [];
+    
+    // Handle both string and array formats
+    if (!columns) {
+      const selected = this.selectedProfile?.lineItemColumns;
+      columnsList = Array.isArray(selected) ? selected : (typeof selected === 'string' ? selected.split(',') : []);
+    } else if (typeof columns === 'string') {
+      columnsList = columns.split(',');
+    } else {
+      columnsList = columns;
+    }
+    
+    const result: Record<string, string> = {};
+    
+    columnsList.forEach((col: string) => {
+      const [name, type] = col.split(':').map((s) => s.trim());
+      if (name && type) {
+        result[name] = type;
+      }
+    });
+    
+    return result;
+  }
+
   getSelectedProfileColumns(): string[] {
-    return this.selectedProfile?.lineItemColumns || [];
+    // Extract just the column names (without types) from "name:type" format
+    return Object.keys(this.selectedProfileLineItemColumns || {});
   }
 
   getInputTypeForColumn(columnName: string): string {
+    // If already contains type info, use it; otherwise infer from name
+    if (columnName.includes(':')) {
+      const type = columnName.split(':')[1].trim().toLowerCase();
+      if (type === 'date') return 'date';
+      if (type === 'number') return 'decimal';
+      return 'text';
+    }
+    
+    // Fallback to name-based inference
     if (columnName.toLowerCase().includes('date')) {
       return 'date';
     }
@@ -112,11 +208,13 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   }
 
   getFormControlNameForColumn(columnName: string): string {
-    const lowerName = columnName.toLowerCase();
+    // Extract just the name if it's in "name:type" format
+    const name = columnName.includes(':') ? columnName.split(':')[0].trim() : columnName;
+    const lowerName = name.toLowerCase();
     if (lowerName === 'rate') return 'unitPrice';
     if (lowerName === 'hours') return 'quantity';
     if (lowerName === 'total') return 'lineTotal';
-    return columnName.charAt(0).toLowerCase() + columnName.slice(1);
+    return name.charAt(0).toLowerCase() + name.slice(1);
   }
 
   calculateTotal(lineItem: any): number {
@@ -539,7 +637,6 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   }
 
   // Profile Management Methods
-  profiles: any[] = [];
   showProfileForm = false;
   editingProfileId: string | null = null;
   profileForm: any;
@@ -551,14 +648,17 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     this.invoicesApi.listProfiles().subscribe({
       next: (profiles) => {
         this.profiles = profiles;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.profiles = [];
+        this.cdr.markForCheck();
       },
     });
+    
   }
 
-  openProfileForm(profile?: any): void {
+  openProfileForm(profile?: BusinessProfileDetail): void {
     this.editingProfileId = profile?.id || null;
     this.showProfileForm = true;
     this.profileFormError = '';
@@ -577,19 +677,51 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
         defaultTaxRate: 0,
         taxLabel: 'Tax',
         defaultTerms: '',
+        lineItemColumns: this.fb.nonNullable.array([]),
       });
     }
 
     if (profile) {
-      this.profileForm.patchValue(profile);
+      const lineColumnsArray = this.profileForm.get('lineItemColumns') as any;
+      lineColumnsArray.clear();
+      
+      if (this.selectedProfileLineItemColumns && typeof this.selectedProfileLineItemColumns === 'object') {
+        // selectedProfileLineItemColumns is Record<string, string> where key=name, value=type
+        Object.entries(this.selectedProfileLineItemColumns).forEach(([name, type]) => {
+          lineColumnsArray.push(this.fb.nonNullable.group({
+            name: [name.trim(), Validators.required],
+            type: [type?.trim() || 'Text', Validators.required],
+          }));
+        });
+      }
+      
+      this.profileForm.patchValue({
+        issuerName: profile.issuerName,
+        issuerAddress: profile.issuerAddress,
+        issuerEmail: profile.issuerEmail,
+        issuerPhone: profile.issuerPhone,
+        issuerRegistrationNumber: profile.issuerRegistrationNumber,
+        issuerTaxNumber: profile.issuerTaxNumber,
+        defaultCurrencyCode: profile.defaultCurrencyCode,
+        invoicePrefix: profile.invoicePrefix,
+        defaultTaxRate: profile.defaultTaxRate,
+        taxLabel: profile.taxLabel,
+        defaultTerms: profile.defaultTerms,
+      });
     } else {
+      const lineColumnsArray = this.profileForm.get('lineItemColumns') as any;
+      lineColumnsArray.clear();
+      
       this.profileForm.reset({
         defaultCurrencyCode: 'USD',
         invoicePrefix: 'INV',
         defaultTaxRate: 0,
         taxLabel: 'Tax',
+        lineItemColumns: [],
       });
     }
+
+    this.cdr.markForCheck();
   }
 
   closeProfileForm(): void {
@@ -607,6 +739,13 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
 
     this.savingProfile = true;
     const profileData = this.profileForm.getRawValue();
+    
+    // Transform lineItemColumns from array of objects to "name:type" format
+    if (profileData.lineItemColumns && Array.isArray(profileData.lineItemColumns)) {
+      profileData.lineItemColumns = profileData.lineItemColumns.map((col: any) => `${col.name}:${col.type}`);
+    } else {
+      profileData.lineItemColumns = [];
+    }
 
     if (this.editingProfileId) {
       this.invoicesApi.updateProfile(this.editingProfileId, profileData).subscribe({
@@ -637,14 +776,17 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  selectProfileForEdit(profile: any): void {
-    this.selectedProfileForEdit = profile;
+  selectProfileForEdit(profileId: any): void {
+    this.selectedProfileForEdit = null;
     
     // Fetch full profile details from the API
-    this.invoicesApi.getProfile(profile.id).subscribe({
+    this.invoicesApi.getProfile(profileId).subscribe({
       next: (profileDetail) => {
         if (profileDetail) {
           this.selectedProfileForEdit = profileDetail;
+          this.selectedProfileLineItemColumns = this.convertLineItemColumnsToKeyValuePair(this.selectedProfileForEdit.lineItemColumns) || {};
+        
+
           this.openProfileForm(profileDetail);
         } else {
           this.profileFormError = 'Failed to load profile details.';
@@ -678,6 +820,28 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
 
   get lineItems() {
     return this.draftForm.get('lineItems') as any;
+  }
+
+  get profileLineItemColumns() {
+    var columnsArray = this.profileForm?.get('lineItemColumns') as any;
+    return columnsArray;
+  }
+
+  addLineItemColumn(): void {
+    const columnsArray = this.profileLineItemColumns;
+    if (columnsArray) {
+      columnsArray.push(this.fb.nonNullable.group({
+        name: ['', Validators.required],
+        type: ['Text', Validators.required],
+      }));
+    }
+  }
+
+  removeLineItemColumn(index: number): void {
+    const columnsArray = this.profileLineItemColumns;
+    if (columnsArray && columnsArray.length > 0) {
+      columnsArray.removeAt(index);
+    }
   }
 
   toggleCreateForm(): void {
@@ -772,13 +936,35 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  private createLineItemGroup() {
-    return this.fb.nonNullable.group({
-      description: ['', Validators.required],
-      quantity: [1, [Validators.required, Validators.min(1)]],
-      unitPrice: [0, [Validators.required, Validators.min(0)]],
-      discountPercent: [0, [Validators.min(0)]],
-      taxRate: [0, [Validators.min(0)]],
-    });
+  private createLineItemGroup(columns?: string[]) {
+    const group: Record<string, any> = {};
+    
+    if (columns && columns.length > 0) {
+      // Create form controls for each column based on profile configuration
+      columns.forEach((column) => {
+        const controlName = this.getFormControlNameForColumn(column);
+        const inputType = this.getInputTypeForColumn(column);
+        
+        if (column.toLowerCase() === 'total') {
+          // Total is calculated, so make it optional
+          group[controlName] = [0, [Validators.min(0)]];
+        } else if (inputType === 'decimal') {
+          group[controlName] = [0, [Validators.required, Validators.min(0)]];
+        } else if (inputType === 'date') {
+          group[controlName] = [''];
+        } else {
+          group[controlName] = ['', Validators.required];
+        }
+      });
+    } else {
+      // Default/fallback controls
+      group['description'] = ['', Validators.required];
+      group['quantity'] = [1, [Validators.required, Validators.min(1)]];
+      group['unitPrice'] = [0, [Validators.required, Validators.min(0)]];
+      group['discountPercent'] = [0, [Validators.min(0)]];
+      group['taxRate'] = [0, [Validators.min(0)]];
+    }
+    
+    return this.fb.nonNullable.group(group);
   }
 }

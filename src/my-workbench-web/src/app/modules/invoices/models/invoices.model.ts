@@ -92,7 +92,7 @@ export interface BusinessProfileDetail extends BusinessProfileSummary {
   issuerRegistrationNumber?: string;
   issuerTaxNumber?: string;
   defaultTerms?: string;
-  lineItemColumns?: string[];
+  lineItemColumns?: string;
   createdAtUtc: string;
 }
 

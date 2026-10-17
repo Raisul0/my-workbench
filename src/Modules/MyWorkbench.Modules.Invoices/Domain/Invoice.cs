@@ -24,7 +24,7 @@ public class Invoice
     public string CustomerTaxNumber { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public string Terms { get; set; } = string.Empty;
-    public string LineItemColumnsCsv { get; set; } = string.Join(',', InvoiceLineItemColumnCatalog.DefaultOrderedColumns);
+    public string LineItemColumns { get; set; } = "itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number";
     public decimal Subtotal { get; set; }
     public decimal DiscountTotal { get; set; }
     public decimal TaxTotal { get; set; }

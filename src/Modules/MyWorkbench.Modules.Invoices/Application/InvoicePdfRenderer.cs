@@ -56,7 +56,7 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         var taxTotal = invoice?.TaxTotal ?? 0m;
         var grandTotal = invoice?.GrandTotal ?? 0m;
         var lineItems = invoice?.LineItems ?? new List<InvoiceLineItem>();
-        var orderedColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(invoice?.LineItemColumnsCsv);
+        var orderedColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(invoice?.LineItemColumns);
 
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");

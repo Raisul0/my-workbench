@@ -15,7 +15,7 @@ public class BusinessProfile
     public int NextSequence { get; set; } = 100;
     public decimal DefaultTaxRate { get; set; } = 0m;
     public string DefaultTerms { get; set; } = "Payment due within 14 days.";
-    public string LineItemColumnsCsv { get; set; } = string.Join(',', InvoiceLineItemColumnCatalog.DefaultOrderedColumns);
+    public string LineItemColumns { get; set; } = "itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number";
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }

@@ -66,7 +66,7 @@ public static class InvoiceEndpoints
                 invoice.Status,
                 invoice.GrandTotal,
                 invoice.CreatedAtUtc,
-                LineItemColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(invoice.LineItemColumnsCsv)
+                LineItemColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(invoice.LineItemColumns)
             });
         });
 
@@ -323,7 +323,7 @@ public static class InvoiceEndpoints
             profile.NextSequence,
             profile.DefaultTaxRate,
             profile.DefaultTerms,
-            LineItemColumns = InvoiceLineItemColumnCatalog.ParseOrDefault(profile.LineItemColumnsCsv),
+            profile.LineItemColumns,
             profile.CreatedAtUtc,
             profile.UpdatedAtUtc
         });

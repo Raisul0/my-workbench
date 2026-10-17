@@ -303,7 +303,7 @@ public class TemplateVersioningTests
         {
             CustomerName = "Acme",
             CurrencyCode = "USD",
-            LineItemColumnsCsv = "client,description,total",
+            LineItemColumns = "client:text,description:text,total:number",
             LineItems =
             [
                 new InvoiceLineItem
@@ -398,14 +398,14 @@ public class InvoiceGenerationTests
         {
             IssuerName = "Profile A",
             InvoicePrefix = "A",
-            LineItemColumnsCsv = "description,total"
+            LineItemColumns = "description:text,total:number"
         };
 
         var secondProfile = new BusinessProfile
         {
             IssuerName = "Profile B",
             InvoicePrefix = "B",
-            LineItemColumnsCsv = "description,total"
+            LineItemColumns = "description:text,total:number"
         };
 
         dbContext.BusinessProfiles.AddRange(firstProfile, secondProfile);
@@ -425,10 +425,10 @@ public class InvoiceGenerationTests
         });
 
         Assert.Equal(secondProfile.Id, invoice.BusinessProfileId);
-        Assert.Equal("client,description,total", invoice.LineItemColumnsCsv);
+        Assert.Equal("client:text,description:text,total:number", invoice.LineItemColumns);
 
         var updatedProfile = await dbContext.BusinessProfiles.SingleAsync(x => x.Id == secondProfile.Id);
-        Assert.Equal("client,description,total", updatedProfile.LineItemColumnsCsv);
+        Assert.Equal("client:text,description:text,total:number", updatedProfile.LineItemColumns);
     }
 
     [Fact]

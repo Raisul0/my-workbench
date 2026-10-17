@@ -88,7 +88,7 @@ public class InvoiceDraftService
                 CustomerTaxNumber = request.CustomerTaxNumber,
                 Notes = request.Notes,
                 Terms = string.IsNullOrWhiteSpace(request.Terms) ? profile.DefaultTerms : request.Terms,
-                LineItemColumnsCsv = columnsCsv,
+                LineItemColumns = columnsCsv,
                 IssueDate = request.IssueDate,
                 DueDate = request.DueDate,
                 Subtotal = totals.Subtotal,
@@ -247,7 +247,7 @@ public class InvoiceDraftService
                     InvoicePrefix = profileData.InvoicePrefix,
                     DefaultTaxRate = profileData.DefaultTaxRate,
                     DefaultTerms = profileData.DefaultTerms,
-                    LineItemColumnsCsv = InvoiceLineItemColumnCatalog.Serialize(InvoiceLineItemColumnCatalog.DefaultOrderedColumns),
+                    LineItemColumns = InvoiceLineItemColumnCatalog.Serialize(InvoiceLineItemColumnCatalog.DefaultOrderedColumns),
                     CreatedAtUtc = DateTimeOffset.UtcNow,
                     UpdatedAtUtc = DateTimeOffset.UtcNow
                 };
@@ -344,7 +344,7 @@ public class InvoiceDraftService
     {
         if (requestedColumns.Count == 0)
         {
-            return InvoiceLineItemColumnCatalog.ParseOrDefault(profile.LineItemColumnsCsv);
+            return InvoiceLineItemColumnCatalog.ParseOrDefault(profile.LineItemColumns);
         }
 
         var normalizedColumns = new List<string>(requestedColumns.Count);
@@ -365,7 +365,7 @@ public class InvoiceDraftService
             normalizedColumns.Add(normalized);
         }
 
-        profile.LineItemColumnsCsv = InvoiceLineItemColumnCatalog.Serialize(normalizedColumns);
+        profile.LineItemColumns = InvoiceLineItemColumnCatalog.Serialize(normalizedColumns);
         profile.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         return normalizedColumns;

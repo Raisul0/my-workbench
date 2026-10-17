@@ -45,18 +45,18 @@ BEGIN
         NextSequence INT NOT NULL,
         DefaultTaxRate DECIMAL(18,4) NOT NULL,
         DefaultTerms NVARCHAR(4000) NOT NULL,
-        LineItemColumnsCsv NVARCHAR(256) NOT NULL,
+        LineItemColumns NVARCHAR(256) NOT NULL,
         CreatedAtUtc DATETIMEOFFSET NOT NULL,
         UpdatedAtUtc DATETIMEOFFSET NOT NULL
     );
 END
 GO
 
-IF COL_LENGTH(N'dbo.BusinessProfiles', N'LineItemColumnsCsv') IS NULL
+IF COL_LENGTH(N'dbo.BusinessProfiles', N'LineItemColumns') IS NULL
 BEGIN
     ALTER TABLE dbo.BusinessProfiles
-        ADD LineItemColumnsCsv NVARCHAR(256) NOT NULL
-            CONSTRAINT DF_BusinessProfiles_LineItemColumnsCsv DEFAULT N'itemNo,date,client,project,description,hours,rate,total';
+        ADD LineItemColumns NVARCHAR(256) NOT NULL
+            CONSTRAINT DF_BusinessProfiles_LineItemColumns DEFAULT N'itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number';
 END
 GO
 
@@ -85,7 +85,7 @@ BEGIN
         CustomerTaxNumber NVARCHAR(200) NOT NULL,
         Notes NVARCHAR(MAX) NOT NULL,
         Terms NVARCHAR(MAX) NOT NULL,
-        LineItemColumnsCsv NVARCHAR(256) NOT NULL,
+        LineItemColumns NVARCHAR(256) NOT NULL,
         Subtotal DECIMAL(18,4) NOT NULL,
         DiscountTotal DECIMAL(18,4) NOT NULL,
         TaxTotal DECIMAL(18,4) NOT NULL,
@@ -106,7 +106,7 @@ BEGIN
         Id, IssuerName, IssuerAddress, IssuerEmail, IssuerPhone,
         IssuerRegistrationNumber, IssuerTaxNumber, TaxLabel,
         DefaultCurrencyCode, InvoicePrefix, NextSequence, DefaultTaxRate,
-        DefaultTerms, LineItemColumnsCsv, CreatedAtUtc, UpdatedAtUtc
+        DefaultTerms, LineItemColumns, CreatedAtUtc, UpdatedAtUtc
     )
     VALUES (
         NEWID(),
@@ -122,7 +122,7 @@ BEGIN
         100,
         0,
         N'Payment due within 14 days.',
-        N'itemNo,date,client,project,description,hours,rate,total',
+        N'itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number',
         SYSDATETIMEOFFSET(),
         SYSDATETIMEOFFSET()
     );
@@ -136,11 +136,11 @@ BEGIN
 END
 GO
 
-IF COL_LENGTH(N'dbo.Invoices', N'LineItemColumnsCsv') IS NULL
+IF COL_LENGTH(N'dbo.Invoices', N'LineItemColumns') IS NULL
 BEGIN
     ALTER TABLE dbo.Invoices
-        ADD LineItemColumnsCsv NVARCHAR(256) NOT NULL
-            CONSTRAINT DF_Invoices_LineItemColumnsCsv DEFAULT N'itemNo,date,client,project,description,hours,rate,total';
+        ADD LineItemColumns NVARCHAR(256) NOT NULL
+            CONSTRAINT DF_Invoices_LineItemColumns DEFAULT N'itemNo:number,date:date,client:text,project:text,description:text,hours:number,rate:number,total:number';
 END
 GO
 
@@ -268,7 +268,7 @@ EXEC('CREATE OR ALTER PROCEDURE dbo.usp_UpsertBusinessProfile
     @NextSequence INT,
     @DefaultTaxRate DECIMAL(18,4),
     @DefaultTerms NVARCHAR(4000),
-    @LineItemColumnsCsv NVARCHAR(256),
+    @LineItemColumns NVARCHAR(256),
     @CreatedAtUtc DATETIMEOFFSET,
     @UpdatedAtUtc DATETIMEOFFSET
 AS
@@ -291,7 +291,7 @@ BEGIN
             NextSequence = @NextSequence,
             DefaultTaxRate = @DefaultTaxRate,
             DefaultTerms = @DefaultTerms,
-            LineItemColumnsCsv = @LineItemColumnsCsv,
+            LineItemColumns = @LineItemColumns,
             UpdatedAtUtc = @UpdatedAtUtc
         WHERE Id = @Id;
     END
@@ -301,13 +301,13 @@ BEGIN
             Id, IssuerName, IssuerAddress, IssuerEmail, IssuerPhone,
             IssuerRegistrationNumber, IssuerTaxNumber, TaxLabel,
             DefaultCurrencyCode, InvoicePrefix, NextSequence, DefaultTaxRate,
-            DefaultTerms, LineItemColumnsCsv, CreatedAtUtc, UpdatedAtUtc
+            DefaultTerms, LineItemColumns, CreatedAtUtc, UpdatedAtUtc
         )
         VALUES (
             @Id, @IssuerName, @IssuerAddress, @IssuerEmail, @IssuerPhone,
             @IssuerRegistrationNumber, @IssuerTaxNumber, @TaxLabel,
             @DefaultCurrencyCode, @InvoicePrefix, @NextSequence, @DefaultTaxRate,
-            @DefaultTerms, @LineItemColumnsCsv, @CreatedAtUtc, @UpdatedAtUtc
+            @DefaultTerms, @LineItemColumns, @CreatedAtUtc, @UpdatedAtUtc
         );
     END
 END');
@@ -365,7 +365,7 @@ BEGIN
         Id, IssuerName, IssuerAddress, IssuerEmail, IssuerPhone,
         IssuerRegistrationNumber, IssuerTaxNumber, TaxLabel,
         DefaultCurrencyCode, InvoicePrefix, NextSequence, DefaultTaxRate,
-        DefaultTerms, LineItemColumnsCsv, CreatedAtUtc, UpdatedAtUtc
+        DefaultTerms, LineItemColumns, CreatedAtUtc, UpdatedAtUtc
     )
     VALUES (
         NEWID(),

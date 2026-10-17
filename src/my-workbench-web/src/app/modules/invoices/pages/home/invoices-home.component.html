@@ -22,10 +22,10 @@
     <div class="form-grid">
       <label>
         Business Profile
-        <select (change)="onProfileSelected(settings)" [disabled]="!settings">
-          <option [value]="null" [selected]="!selectedProfile">Select a profile</option>
-          @if (settings) {
-            <option [ngValue]="settings">{{ settings.issuerName }}</option>
+        <select #profileSelect (change)="onProfileSelected(profileSelect.value)" [disabled]="!profiles || profiles.length === 0">
+          <option value="">Select a profile</option>
+          @for (profile of profiles; track profile.id) {
+            <option [value]="profile.id">{{ profile.issuerName }}</option>
           }
         </select>
         @if (!selectedProfile) {
@@ -172,16 +172,16 @@
 <div class="panel settings-panel">
   <div class="toolbar">
     <h2>Business Profiles</h2>
-    <span class="badge">{{ settingsList.length }} profiles</span>
+    <span class="badge">{{ profiles.length }} profiles</span>
   </div>
 
-  @if (settingsList.length === 0) {
+  @if (profiles.length === 0) {
     <p class="muted">No business profiles configured yet. Create one to get started.</p>
   } @else {
     <div class="profiles-list" role="list">
-      @for (profile of settingsList; track profile.id) {
+      @for (profile of profiles; track profile.id) {
         <article class="profile-item" role="listitem" [class.selected-profile-item]="selectedProfileForEdit?.id === profile.id">
-          <button type="button" class="profile-info-button" (click)="selectProfileForEdit(profile)">
+          <button type="button" class="profile-info-button" (click)="selectProfileForEdit(profile.id)">
             <div>
               <p class="invoice-number">{{ profile.issuerName }}</p>
               <p class="customer-name">{{ profile.issuerEmail || 'No email' }}</p>
@@ -198,7 +198,7 @@
             </div>
           </button>
 
-          <button type="button" class="edit-button" (click)="selectProfileForEdit(profile)" title="Edit this profile">
+          <button type="button" class="edit-button" (click)="selectProfileForEdit(profile.id)" title="Edit this profile">
             ✎ Edit
           </button>
 
@@ -413,6 +413,50 @@
             Default Terms
             <textarea formControlName="defaultTerms" rows="2" placeholder="Payment terms..."></textarea>
           </label>
+        </div>
+
+        <div class="profile-line-columns-section">
+          <div class="columns-header">
+            <h3>Line Item Columns</h3>
+            <button type="button" class="secondary-button" (click)="addLineItemColumn()">
+              + Add Column
+            </button>
+          </div>
+
+          <div class="columns-list" formArrayName="lineItemColumns">
+            @if (profileLineItemColumns && profileLineItemColumns.length > 0) {
+              @for (column of profileLineItemColumns.controls; track $index; let index = $index) {
+                <div class="column-row" [formGroupName]="index">
+                  <div class="column-inputs">
+                    <label class="column-name">
+                      Column Name
+                      <input formControlName="name" placeholder="e.g., Description, Hours, Rate" />
+                    </label>
+
+                    <label class="column-type">
+                      Type
+                      <select formControlName="type">
+                        <option value="text">Text</option>
+                        <option value="number">Number</option>
+                        <option value="date">Date</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="danger-button remove-column-btn"
+                    (click)="removeLineItemColumn(index)"
+                    [disabled]="profileLineItemColumns.length <= 0"
+                  >
+                    Remove
+                  </button>
+                </div>
+              }
+            } @else {
+              <p class="no-columns">No columns configured yet. Add one to get started.</p>
+            }
+          </div>
         </div>
 
         <div class="modal-footer">
