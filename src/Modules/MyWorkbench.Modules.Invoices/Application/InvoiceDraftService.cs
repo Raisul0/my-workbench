@@ -17,14 +17,14 @@ public class InvoiceDraftService
         _logger = logger;
     }
 
-    public async Task<BusinessProfile> GetSettingsAsync(CancellationToken cancellationToken = default)
+    public async Task<CustomerProfile> GetSettingsAsync(CancellationToken cancellationToken = default)
     {
         using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceDraftService), nameof(GetSettingsAsync));
         InvoiceServiceLog.Started(_logger, nameof(GetSettingsAsync));
 
         try
         {
-            var profile = await ResolveBusinessProfileAsync(null, cancellationToken);
+            var profile = await ResolveCustomerProfileAsync(null, cancellationToken);
             InvoiceServiceLog.Succeeded(_logger, nameof(GetSettingsAsync), profile.Id);
             return profile;
         }
@@ -44,7 +44,7 @@ public class InvoiceDraftService
 
         try
         {
-            var profile = await ResolveBusinessProfileAsync(request.BusinessProfileId, cancellationToken);
+            var profile = await ResolveCustomerProfileAsync(request.CustomerProfileId, cancellationToken);
 
             if (request.LineItems.Count == 0)
             {
@@ -70,7 +70,7 @@ public class InvoiceDraftService
             var totals = InvoiceTotalsCalculator.Calculate(lineItems);
             var invoice = new Invoice
             {
-                BusinessProfileId = profile.Id,
+                CustomerProfileId = profile.Id,
                 InvoiceNumber = InvoiceNumberAllocator.NextNumber(profile),
                 Status = InvoiceStatus.Draft,
                 CurrencyCode = string.IsNullOrWhiteSpace(request.CurrencyCode) ? profile.DefaultCurrencyCode : request.CurrencyCode,
@@ -113,7 +113,7 @@ public class InvoiceDraftService
         {
             var result = await _dbContext.Invoices
                 .AsNoTracking()
-                .Include(x => x.BusinessProfile)
+                .Include(x => x.CustomerProfile)
                 .Include(x => x.LineItems)
                 .OrderByDescending(x => x.CreatedAtUtc)
                 .ToListAsync(cancellationToken);
@@ -156,20 +156,20 @@ public class InvoiceDraftService
         }
     }
 
-    private async Task<BusinessProfile> ResolveBusinessProfileAsync(Guid? businessProfileId, CancellationToken cancellationToken)
+    private async Task<CustomerProfile> ResolveCustomerProfileAsync(Guid? customerProfileId, CancellationToken cancellationToken)
     {
-        if (businessProfileId.HasValue)
+        if (customerProfileId.HasValue)
         {
-            var selected = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(x => x.Id == businessProfileId.Value, cancellationToken);
+            var selected = await _dbContext.CustomerProfiles.SingleOrDefaultAsync(x => x.Id == customerProfileId.Value, cancellationToken);
             if (selected is null)
             {
-                throw new InvalidOperationException("The selected business profile was not found.");
+                throw new InvalidOperationException("The selected customer profile was not found.");
             }
 
             return selected;
         }
 
-        var defaultProfile = await _dbContext.BusinessProfiles
+        var defaultProfile = await _dbContext.CustomerProfiles
             .OrderBy(x => x.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -178,13 +178,13 @@ public class InvoiceDraftService
             return defaultProfile;
         }
 
-        defaultProfile = new BusinessProfile();
-        _dbContext.BusinessProfiles.Add(defaultProfile);
+        defaultProfile = new CustomerProfile();
+        _dbContext.CustomerProfiles.Add(defaultProfile);
         await _dbContext.SaveChangesAsync(cancellationToken);
         return defaultProfile;
     }
 
-    public async Task<BusinessProfile> CreateOrUpdateProfileAsync(Guid? profileId, BusinessProfile profileData, CancellationToken cancellationToken = default)
+    public async Task<CustomerProfile> CreateOrUpdateProfileAsync(Guid? profileId, CustomerProfile profileData, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profileData);
 
@@ -193,24 +193,24 @@ public class InvoiceDraftService
 
         try
         {
-            BusinessProfile profile;
+            CustomerProfile profile;
 
             if (profileId.HasValue)
             {
                 // Update existing profile
-                var existingProfile = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(x => x.Id == profileId.Value, cancellationToken);
+                var existingProfile = await _dbContext.CustomerProfiles.SingleOrDefaultAsync(x => x.Id == profileId.Value, cancellationToken);
                 if (existingProfile is null)
                 {
-                    throw new InvalidOperationException("Business profile not found.");
+                    throw new InvalidOperationException("Customer profile not found.");
                 }
                 profile = existingProfile;
 
-                profile.IssuerName = profileData.IssuerName;
-                profile.IssuerAddress = profileData.IssuerAddress;
-                profile.IssuerEmail = profileData.IssuerEmail;
-                profile.IssuerPhone = profileData.IssuerPhone;
-                profile.IssuerRegistrationNumber = profileData.IssuerRegistrationNumber;
-                profile.IssuerTaxNumber = profileData.IssuerTaxNumber;
+                profile.CustomerName = profileData.CustomerName;
+                profile.CustomerAddress = profileData.CustomerAddress;
+                profile.CustomerEmail = profileData.CustomerEmail;
+                profile.CustomerPhone = profileData.CustomerPhone;
+                profile.CustomerRegistrationNumber = profileData.CustomerRegistrationNumber;
+                profile.CustomerTaxNumber = profileData.CustomerTaxNumber;
                 profile.TaxLabel = profileData.TaxLabel;
                 profile.DefaultCurrencyCode = profileData.DefaultCurrencyCode;
                 profile.InvoicePrefix = profileData.InvoicePrefix;
@@ -219,20 +219,20 @@ public class InvoiceDraftService
                 profile.UpdatedAtUtc = DateTimeOffset.UtcNow;
                 profile.LineItemColumns = profileData.LineItemColumns;
 
-                _dbContext.BusinessProfiles.Update(profile);
+                _dbContext.CustomerProfiles.Update(profile);
             }
             else
             {
                 // Create new profile
-                profile = new BusinessProfile
+                profile = new CustomerProfile
                 {
                     Id = Guid.NewGuid(),
-                    IssuerName = profileData.IssuerName,
-                    IssuerAddress = profileData.IssuerAddress,
-                    IssuerEmail = profileData.IssuerEmail,
-                    IssuerPhone = profileData.IssuerPhone,
-                    IssuerRegistrationNumber = profileData.IssuerRegistrationNumber,
-                    IssuerTaxNumber = profileData.IssuerTaxNumber,
+                    CustomerName = profileData.CustomerName,
+                    CustomerAddress = profileData.CustomerAddress,
+                    CustomerEmail = profileData.CustomerEmail,
+                    CustomerPhone = profileData.CustomerPhone,
+                    CustomerRegistrationNumber = profileData.CustomerRegistrationNumber,
+                    CustomerTaxNumber = profileData.CustomerTaxNumber,
                     TaxLabel = profileData.TaxLabel,
                     DefaultCurrencyCode = profileData.DefaultCurrencyCode,
                     InvoicePrefix = profileData.InvoicePrefix,
@@ -245,7 +245,7 @@ public class InvoiceDraftService
                     UpdatedAtUtc = DateTimeOffset.UtcNow
                 };
 
-                _dbContext.BusinessProfiles.Add(profile);
+                _dbContext.CustomerProfiles.Add(profile);
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -260,14 +260,14 @@ public class InvoiceDraftService
         }
     }
 
-    public async Task<BusinessProfile?> GetProfileByIdAsync(Guid profileId, CancellationToken cancellationToken = default)
+    public async Task<CustomerProfile?> GetProfileByIdAsync(Guid profileId, CancellationToken cancellationToken = default)
     {
         using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceDraftService), nameof(GetProfileByIdAsync));
         InvoiceServiceLog.Started(_logger, nameof(GetProfileByIdAsync));
 
         try
         {
-            var profile = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(x => x.Id == profileId, cancellationToken);
+            var profile = await _dbContext.CustomerProfiles.SingleOrDefaultAsync(x => x.Id == profileId, cancellationToken);
             InvoiceServiceLog.Succeeded(_logger, nameof(GetProfileByIdAsync), profileId);
             return profile;
         }
@@ -278,14 +278,14 @@ public class InvoiceDraftService
         }
     }
 
-    public async Task<IReadOnlyList<BusinessProfile>> ListProfilesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CustomerProfile>> ListProfilesAsync(CancellationToken cancellationToken = default)
     {
         using var scope = InvoiceServiceLog.BeginOperationScope(_logger, nameof(InvoiceDraftService), nameof(ListProfilesAsync));
         InvoiceServiceLog.Started(_logger, nameof(ListProfilesAsync));
 
         try
         {
-            var profiles = await _dbContext.BusinessProfiles
+            var profiles = await _dbContext.CustomerProfiles
                 .AsNoTracking()
                 .OrderBy(x => x.CreatedAtUtc)
                 .ToListAsync(cancellationToken);
@@ -306,15 +306,15 @@ public class InvoiceDraftService
 
         try
         {
-            var profile = await _dbContext.BusinessProfiles.SingleOrDefaultAsync(x => x.Id == profileId, cancellationToken);
+            var profile = await _dbContext.CustomerProfiles.SingleOrDefaultAsync(x => x.Id == profileId, cancellationToken);
             if (profile is null)
             {
-                throw new InvalidOperationException("Business profile not found.");
+                throw new InvalidOperationException("Customer profile not found.");
             }
 
             // Check if there are any invoices associated with this profile
             var invoiceCount = await _dbContext.Invoices
-                .Where(x => x.BusinessProfileId == profileId)
+                .Where(x => x.CustomerProfileId == profileId)
                 .CountAsync(cancellationToken);
 
             if (invoiceCount > 0)
@@ -322,7 +322,7 @@ public class InvoiceDraftService
                 throw new InvalidOperationException($"Cannot delete this profile because it has {invoiceCount} associated invoice(s). Please delete or reassign the invoices first.");
             }
 
-            _dbContext.BusinessProfiles.Remove(profile);
+            _dbContext.CustomerProfiles.Remove(profile);
             await _dbContext.SaveChangesAsync(cancellationToken);
             InvoiceServiceLog.Succeeded(_logger, nameof(DeleteProfileAsync), profileId);
         }
@@ -333,7 +333,7 @@ public class InvoiceDraftService
         }
     }
 
-    private IReadOnlyList<string> ResolveLineItemColumns(IReadOnlyCollection<string> requestedColumns, BusinessProfile profile)
+    private IReadOnlyList<string> ResolveLineItemColumns(IReadOnlyCollection<string> requestedColumns, CustomerProfile profile)
     {
         if (requestedColumns.Count == 0)
         {

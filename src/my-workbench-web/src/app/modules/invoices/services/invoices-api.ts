@@ -8,8 +8,8 @@ import {
   InvoiceSettings,
   InvoiceTemplateSummary,
   TemplateLayoutDocument,
-  BusinessProfileSummary,
-  BusinessProfileDetail
+  CustomerProfileSummary,
+  CustomerProfileDetail
 } from '../models';
 
 /**
@@ -39,8 +39,8 @@ export class InvoicesApiService extends ApiService {
   }
 
   getSettings() {
-    return this.get<BusinessProfileSummary[]>('/api/invoices/settings').pipe(
-      catchError(() => of([] as BusinessProfileSummary[]))
+    return this.get<CustomerProfileSummary[]>('/api/invoices/settings').pipe(
+      catchError(() => of([] as CustomerProfileSummary[]))
     );
   }
 
@@ -100,21 +100,21 @@ export class InvoicesApiService extends ApiService {
     );
   }
 
-  // Business Profile Management
+  // Customer Profile Management
   listProfiles() {
-    return this.get<BusinessProfileSummary[]>('/api/invoices/profiles').pipe(
-      catchError(() => of([] as BusinessProfileSummary[]))
+    return this.get<CustomerProfileSummary[]>('/api/invoices/profiles').pipe(
+      catchError(() => of([] as CustomerProfileSummary[]))
     );
   }
 
   getProfile(profileId: string) {
-    return this.get<BusinessProfileDetail>(`/api/invoices/profiles/${profileId}`).pipe(
+    return this.get<CustomerProfileDetail>(`/api/invoices/profiles/${profileId}`).pipe(
       catchError(() => of(null))
     );
   }
 
-  createProfile(request: Partial<BusinessProfileDetail>) {
-    return this.post<BusinessProfileSummary>(
+  createProfile(request: Partial<CustomerProfileDetail>) {
+    return this.post<CustomerProfileSummary>(
       '/api/invoices/profiles',
       request
     ).pipe(
@@ -122,8 +122,8 @@ export class InvoicesApiService extends ApiService {
     );
   }
 
-  updateProfile(profileId: string, request: Partial<BusinessProfileDetail>) {
-    return this.put<BusinessProfileSummary>(
+  updateProfile(profileId: string, request: Partial<CustomerProfileDetail>) {
+    return this.put<CustomerProfileSummary>(
       `/api/invoices/profiles/${profileId}`,
       request
     ).pipe(

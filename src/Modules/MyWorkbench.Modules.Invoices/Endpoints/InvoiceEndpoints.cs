@@ -36,7 +36,7 @@ public static class InvoiceEndpoints
                 invoice.CurrencyCode,
                 invoice.GrandTotal,
                 invoice.IssueDate,
-                CustomerName = invoice.BusinessProfile?.IssuerName ?? string.Empty
+                CustomerName = invoice.CustomerProfile?.CustomerName ?? string.Empty
             }));
         });
 
@@ -56,7 +56,7 @@ public static class InvoiceEndpoints
             return Results.Ok(new
             {
                 invoice.Id,
-                invoice.BusinessProfileId,
+                invoice.CustomerProfileId,
                 invoice.InvoiceNumber,
                 invoice.Status,
                 invoice.GrandTotal,
@@ -285,8 +285,8 @@ public static class InvoiceEndpoints
         return Results.Ok(profiles.Select(profile => new
         {
             profile.Id,
-            profile.IssuerName,
-            profile.IssuerEmail,
+            profile.CustomerName,
+            profile.CustomerEmail,
             profile.DefaultCurrencyCode,
             profile.InvoicePrefix,
             profile.NextSequence,
@@ -301,18 +301,18 @@ public static class InvoiceEndpoints
         var profile = await service.GetProfileByIdAsync(profileId, cancellationToken);
         if (profile is null)
         {
-            return Results.NotFound(new { message = "Business profile not found." });
+            return Results.NotFound(new { message = "Customer profile not found." });
         }
 
         return Results.Ok(new
         {
             profile.Id,
-            profile.IssuerName,
-            profile.IssuerAddress,
-            profile.IssuerEmail,
-            profile.IssuerPhone,
-            profile.IssuerRegistrationNumber,
-            profile.IssuerTaxNumber,
+            profile.CustomerName,
+            profile.CustomerAddress,
+            profile.CustomerEmail,
+            profile.CustomerPhone,
+            profile.CustomerRegistrationNumber,
+            profile.CustomerTaxNumber,
             profile.TaxLabel,
             profile.DefaultCurrencyCode,
             profile.InvoicePrefix,
@@ -325,11 +325,11 @@ public static class InvoiceEndpoints
         });
     }
 
-    private static async Task<IResult> CreateProfile(BusinessProfile request, InvoiceDraftService service, CancellationToken cancellationToken)
+    private static async Task<IResult> CreateProfile(CustomerProfile request, InvoiceDraftService service, CancellationToken cancellationToken)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.IssuerName))
+        if (request is null || string.IsNullOrWhiteSpace(request.CustomerName))
         {
-            return Results.BadRequest(new { message = "Issuer name is required." });
+            return Results.BadRequest(new { message = "Customer name is required." });
         }
 
         try
@@ -343,11 +343,11 @@ public static class InvoiceEndpoints
         }
     }
 
-    private static async Task<IResult> UpdateProfile(Guid profileId, BusinessProfile request, InvoiceDraftService service, CancellationToken cancellationToken)
+    private static async Task<IResult> UpdateProfile(Guid profileId, CustomerProfile request, InvoiceDraftService service, CancellationToken cancellationToken)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.IssuerName))
+        if (request is null || string.IsNullOrWhiteSpace(request.CustomerName))
         {
-            return Results.BadRequest(new { message = "Issuer name is required." });
+            return Results.BadRequest(new { message = "Customer name is required." });
         }
 
         try
@@ -356,8 +356,8 @@ public static class InvoiceEndpoints
             return Results.Ok(new
             {
                 profile.Id,
-                profile.IssuerName,
-                profile.IssuerEmail,
+                profile.CustomerName,
+                profile.CustomerEmail,
                 profile.DefaultCurrencyCode,
                 profile.UpdatedAtUtc
             });
@@ -395,8 +395,8 @@ public static class InvoiceEndpoints
         return Results.Ok(profiles.Select(profile => new
         {
             profile.Id,
-            profile.IssuerName,
-            profile.IssuerEmail,
+            profile.CustomerName,
+            profile.CustomerEmail,
             profile.DefaultCurrencyCode,
             profile.InvoicePrefix,
             profile.NextSequence,

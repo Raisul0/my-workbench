@@ -32,7 +32,7 @@ export interface InvoiceTemplateSummary {
 
 export interface InvoiceSettings {
   id: string;
-  issuerName: string;
+  customerName: string;
   defaultCurrencyCode: string;
   invoicePrefix: string;
   nextSequence: number;
@@ -48,6 +48,7 @@ export interface TemplateFieldBinding {
   y?: number;
   width?: number;
   height?: number;
+  customText?: string;
 }
 
 export interface TemplateLayoutDocument {
@@ -58,7 +59,7 @@ export interface TemplateLayoutDocument {
 }
 
 export interface CreateInvoiceDraftRequest {
-  businessProfileId?: string;
+  customerProfileId?: string;
   notes?: string;
   terms?: string;
   currencyCode?: string;
@@ -68,10 +69,10 @@ export interface CreateInvoiceDraftRequest {
   lineItems: InvoiceDraftLineItem[];
 }
 
-export interface BusinessProfileSummary {
+export interface CustomerProfileSummary {
   id: string;
-  issuerName: string;
-  issuerEmail?: string;
+  customerName: string;
+  customerEmail?: string;
   defaultCurrencyCode: string;
   invoicePrefix: string;
   nextSequence: number;
@@ -80,11 +81,11 @@ export interface BusinessProfileSummary {
   updatedAtUtc: string;
 }
 
-export interface BusinessProfileDetail extends BusinessProfileSummary {
-  issuerAddress?: string;
-  issuerPhone?: string;
-  issuerRegistrationNumber?: string;
-  issuerTaxNumber?: string;
+export interface CustomerProfileDetail extends CustomerProfileSummary {
+  customerAddress?: string;
+  customerPhone?: string;
+  customerRegistrationNumber?: string;
+  customerTaxNumber?: string;
   defaultTerms?: string;
   lineItemColumns?: string;
   createdAtUtc: string;

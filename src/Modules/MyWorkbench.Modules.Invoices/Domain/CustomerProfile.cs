@@ -1,14 +1,14 @@
 namespace MyWorkbench.Modules.Invoices.Domain;
 
-public class BusinessProfile
+public class CustomerProfile
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string IssuerName { get; set; } = "My Business";
-    public string IssuerAddress { get; set; } = string.Empty;
-    public string IssuerEmail { get; set; } = string.Empty;
-    public string IssuerPhone { get; set; } = string.Empty;
-    public string IssuerRegistrationNumber { get; set; } = string.Empty;
-    public string IssuerTaxNumber { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = "Customer";
+    public string CustomerAddress { get; set; } = string.Empty;
+    public string CustomerEmail { get; set; } = string.Empty;
+    public string CustomerPhone { get; set; } = string.Empty;
+    public string CustomerRegistrationNumber { get; set; } = string.Empty;
+    public string CustomerTaxNumber { get; set; } = string.Empty;
     public string TaxLabel { get; set; } = "Tax";
     public string DefaultCurrencyCode { get; set; } = "USD";
     public string InvoicePrefix { get; set; } = "INV";

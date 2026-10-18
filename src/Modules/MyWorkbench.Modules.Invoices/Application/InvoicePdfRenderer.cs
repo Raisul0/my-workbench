@@ -158,9 +158,9 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
     private static string BuildHtmlInvoice(InvoiceTemplateVersion version, Invoice? invoice)
     {
         var invoiceNumber = invoice?.InvoiceNumber ?? "PREVIEW-001";
-        var profileName = invoice?.BusinessProfile?.IssuerName ?? "Customer Name";
-        var profileAddress = invoice?.BusinessProfile?.IssuerAddress ?? string.Empty;
-        var profileEmail = invoice?.BusinessProfile?.IssuerEmail ?? string.Empty;
+        var profileName = invoice?.CustomerProfile?.CustomerName ?? "Customer Name";
+        var profileAddress = invoice?.CustomerProfile?.CustomerAddress ?? string.Empty;
+        var profileEmail = invoice?.CustomerProfile?.CustomerEmail ?? string.Empty;
         var issueDate = invoice?.IssueDate.ToString("MMM d, yyyy") ?? System.DateTime.Now.ToString("MMM d, yyyy");
         var dueDate = invoice?.DueDate?.ToString("MMM d, yyyy") ?? "Upon receipt";
         var currency = invoice?.CurrencyCode ?? "USD";

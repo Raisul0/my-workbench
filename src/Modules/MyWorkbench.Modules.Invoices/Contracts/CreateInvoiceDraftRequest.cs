@@ -2,7 +2,7 @@ namespace MyWorkbench.Modules.Invoices.Contracts;
 
 public sealed class CreateInvoiceDraftRequest
 {
-    public Guid? BusinessProfileId { get; set; }
+    public Guid? CustomerProfileId { get; set; }
     public string Notes { get; set; } = string.Empty;
     public string Terms { get; set; } = string.Empty;
     public string CurrencyCode { get; set; } = "USD";

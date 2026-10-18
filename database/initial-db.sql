@@ -29,16 +29,16 @@ GO
 USE [MyWorkbench];
 GO
 
-IF OBJECT_ID(N'dbo.BusinessProfiles', N'U') IS NULL
+IF OBJECT_ID(N'dbo.CustomerProfiles', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.BusinessProfiles (
+    CREATE TABLE dbo.CustomerProfiles (
         Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-        IssuerName NVARCHAR(200) NOT NULL,
-        IssuerAddress NVARCHAR(MAX) NOT NULL,
-        IssuerEmail NVARCHAR(200) NOT NULL,
-        IssuerPhone NVARCHAR(50) NOT NULL,
-        IssuerRegistrationNumber NVARCHAR(200) NOT NULL,
-        IssuerTaxNumber NVARCHAR(200) NOT NULL,
+        CustomerName NVARCHAR(200) NOT NULL,
+        CustomerAddress NVARCHAR(MAX) NOT NULL,
+        CustomerEmail NVARCHAR(200) NOT NULL,
+        CustomerPhone NVARCHAR(50) NOT NULL,
+        CustomerRegistrationNumber NVARCHAR(200) NOT NULL,
+        CustomerTaxNumber NVARCHAR(200) NOT NULL,
         TaxLabel NVARCHAR(50) NOT NULL,
         DefaultCurrencyCode NVARCHAR(8) NOT NULL,
         InvoicePrefix NVARCHAR(32) NOT NULL,
@@ -52,11 +52,11 @@ BEGIN
 END
 GO
 
-IF COL_LENGTH(N'dbo.BusinessProfiles', N'LineItemColumns') IS NULL
+IF COL_LENGTH(N'dbo.CustomerProfiles', N'LineItemColumns') IS NULL
 BEGIN
-    ALTER TABLE dbo.BusinessProfiles
+    ALTER TABLE dbo.CustomerProfiles
         ADD LineItemColumns NVARCHAR(256) NOT NULL
-            CONSTRAINT DF_BusinessProfiles_LineItemColumns DEFAULT N'description:text,total:number';
+            CONSTRAINT DF_CustomerProfiles_LineItemColumns DEFAULT N'description:text,total:number';
 END
 GO
 
@@ -64,7 +64,7 @@ IF OBJECT_ID(N'dbo.Invoices', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.Invoices (
         Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-        BusinessProfileId UNIQUEIDENTIFIER NOT NULL,
+        CustomerProfileId UNIQUEIDENTIFIER NOT NULL,
         InvoiceNumber NVARCHAR(64) NOT NULL UNIQUE,
         Status INT NOT NULL,
         TemplateVersionId UNIQUEIDENTIFIER NOT NULL,
@@ -88,17 +88,17 @@ BEGIN
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM dbo.BusinessProfiles)
+IF NOT EXISTS (SELECT 1 FROM dbo.CustomerProfiles)
 BEGIN
-    INSERT INTO dbo.BusinessProfiles (
-        Id, IssuerName, IssuerAddress, IssuerEmail, IssuerPhone,
-        IssuerRegistrationNumber, IssuerTaxNumber, TaxLabel,
+    INSERT INTO dbo.CustomerProfiles (
+        Id, CustomerName, CustomerAddress, CustomerEmail, CustomerPhone,
+        CustomerRegistrationNumber, CustomerTaxNumber, TaxLabel,
         DefaultCurrencyCode, InvoicePrefix, NextSequence, DefaultTaxRate,
         DefaultTerms, LineItemColumns, CreatedAtUtc, UpdatedAtUtc
     )
     VALUES (
         NEWID(),
-        N'My Business',
+        N'Customer',
         N'',
         N'',
         N'',
@@ -117,10 +117,10 @@ BEGIN
 END
 GO
 
-IF COL_LENGTH(N'dbo.Invoices', N'BusinessProfileId') IS NULL
+IF COL_LENGTH(N'dbo.Invoices', N'CustomerProfileId') IS NULL
 BEGIN
     ALTER TABLE dbo.Invoices
-        ADD BusinessProfileId UNIQUEIDENTIFIER NULL;
+        ADD CustomerProfileId UNIQUEIDENTIFIER NULL;
 END
 GO
 

@@ -83,7 +83,7 @@ public sealed class InvoiceGenerationService
     private async Task<Invoice> LoadInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken)
     {
         var invoice = await _dbContext.Invoices
-            .Include(x => x.BusinessProfile)
+            .Include(x => x.CustomerProfile)
             .Include(x => x.LineItems)
             .SingleOrDefaultAsync(x => x.Id == invoiceId, cancellationToken);
 

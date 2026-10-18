@@ -3,7 +3,7 @@ namespace MyWorkbench.Modules.Invoices.Domain;
 public class Invoice
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid BusinessProfileId { get; set; }
+    public Guid CustomerProfileId { get; set; }
     public string InvoiceNumber { get; set; } = string.Empty;
     public InvoiceStatus Status { get; set; } = InvoiceStatus.Draft;
     public Guid TemplateVersionId { get; set; }
@@ -24,6 +24,6 @@ public class Invoice
     public DateTimeOffset? GeneratedAtUtc { get; set; }
     public byte[]? RowVersion { get; set; }
 
-    public BusinessProfile? BusinessProfile { get; set; }
+    public CustomerProfile? CustomerProfile { get; set; }
     public ICollection<InvoiceLineItem> LineItems { get; set; } = new List<InvoiceLineItem>();
 }

@@ -105,6 +105,21 @@
             </label>
           </div>
 
+          @if (fields[selectedFieldIndex].type === 'Text') {
+            <div class="field-property">
+              <label>
+                Custom Text
+                <input
+                  type="text"
+                  [value]="fields[selectedFieldIndex].customText || ''"
+                  (change)="updateFieldProperty(selectedFieldIndex, 'customText', $any($event.target).value)"
+                  placeholder="e.g., Invoice, Terms & Conditions"
+                />
+              </label>
+              <p class="field-hint">Leave empty to use as a data field</p>
+            </div>
+          }
+
           <div class="field-coordinates">
             <label>
               X (mm)
@@ -171,7 +186,13 @@
                 [class.selected]="selectedFieldIndex === index"
                 (click)="selectField(index)"
               >
-                <span class="field-name">{{ field.name }}</span>
+                <span class="field-name">
+                  @if (field.customText) {
+                    {{ field.customText }}
+                  } @else {
+                    {{ field.name }}
+                  }
+                </span>
                 <span class="field-type">{{ field.type }}</span>
               </button>
             }
@@ -223,7 +244,11 @@
                 [style.pointerEvents]="dragState?.mode === 'move' ? 'none' : 'auto'"
                 (pointerdown)="startFieldDrag($event, index, 'move')"
               >
-                <span class="field-label">{{ field.name }}</span>
+                @if (field.customText) {
+                  <span class="field-label">{{ field.customText }}</span>
+                } @else {
+                  <span class="field-label">{{ field.name }}</span>
+                }
                 <span class="field-type-badge">{{ field.type }}</span>
               </div>
 

@@ -5,7 +5,7 @@ using MyWorkbench.Modules.Invoices.Domain;
 
 public static class InvoiceNumberAllocator
 {
-    public static string NextNumber(BusinessProfile settings)
+    public static string NextNumber(CustomerProfile settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
 

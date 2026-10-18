@@ -114,25 +114,23 @@ public class InvoiceCalculatorTests
             new InvoiceLineItem
             {
                 Description = "Consulting",
-                Quantity = 2m,
-                UnitPrice = 100m,
-                DiscountPercent = 10m,
-                TaxRate = 6m
+                Total = 200m,
+                OtherColumns = ""
             }
         };
 
         var totals = InvoiceTotalsCalculator.Calculate(lineItems);
 
         Assert.Equal(200m, totals.Subtotal);
-        Assert.Equal(20m, totals.DiscountTotal);
-        Assert.Equal(10.8m, totals.TaxTotal);
-        Assert.Equal(190.8m, totals.GrandTotal);
+        Assert.Equal(0m, totals.DiscountTotal);
+        Assert.Equal(0m, totals.TaxTotal);
+        Assert.Equal(200m, totals.GrandTotal);
     }
 
     [Fact]
     public void ReserveNextInvoiceNumber_ShouldNeverReuseNumbers()
     {
-        var settings = new BusinessProfile
+        var settings = new CustomerProfile
         {
             InvoicePrefix = "INV",
             NextSequence = 100
@@ -301,7 +299,6 @@ public class TemplateVersioningTests
 
         var invoice = new Invoice
         {
-            CustomerName = "Acme",
             CurrencyCode = "USD",
             LineItemColumns = "client:text,description:text,total:number",
             LineItems =
@@ -309,9 +306,8 @@ public class TemplateVersioningTests
                 new InvoiceLineItem
                 {
                     Description = "Consulting",
-                    Quantity = 2m,
-                    UnitPrice = 100m,
-                    LineTotal = 200m
+                    Total = 200m,
+                    OtherColumns = "client:Acme"
                 }
             ]
         };
@@ -362,12 +358,12 @@ public class InvoiceGenerationTests
 
         var invoice = await draftService.CreateDraftAsync(new CreateInvoiceDraftRequest
         {
-            CustomerName = "Contoso",
+            CustomerProfileId = null,
             CurrencyCode = "USD",
             IssueDate = DateOnly.FromDateTime(DateTime.UtcNow),
             LineItems = new List<CreateInvoiceLineItemRequest>
             {
-                new() { Description = "Consulting", Quantity = 2m, UnitPrice = 100m, DiscountPercent = 10m, TaxRate = 6m }
+                new() { Description = "Consulting", Total = 200m, OtherColumns = "" }
             }
         });
 
@@ -375,7 +371,7 @@ public class InvoiceGenerationTests
         dbContext.Invoices.Update(invoice);
         await dbContext.SaveChangesAsync();
 
-        var preview = await generationService.PreviewAsync(invoice.Id, CancellationToken.None);
+        var preview = await generationService.PreviewHtmlAsync(invoice.Id, CancellationToken.None);
         Assert.NotEmpty(preview);
 
         var generated = await generationService.GenerateAsync(invoice.Id, CancellationToken.None);
@@ -394,40 +390,39 @@ public class InvoiceGenerationTests
 
         await using var dbContext = new InvoiceDbContext(options);
 
-        var firstProfile = new BusinessProfile
+        var firstProfile = new CustomerProfile
         {
-            IssuerName = "Profile A",
+            CustomerName = "Profile A",
             InvoicePrefix = "A",
             LineItemColumns = "description:text,total:number"
         };
 
-        var secondProfile = new BusinessProfile
+        var secondProfile = new CustomerProfile
         {
-            IssuerName = "Profile B",
+            CustomerName = "Profile B",
             InvoicePrefix = "B",
             LineItemColumns = "description:text,total:number"
         };
 
-        dbContext.BusinessProfiles.AddRange(firstProfile, secondProfile);
+        dbContext.CustomerProfiles.AddRange(firstProfile, secondProfile);
         await dbContext.SaveChangesAsync();
 
         var draftService = new InvoiceDraftService(dbContext, NullLogger<InvoiceDraftService>.Instance);
 
         var invoice = await draftService.CreateDraftAsync(new CreateInvoiceDraftRequest
         {
-            BusinessProfileId = secondProfile.Id,
-            CustomerName = "Northwind",
+            CustomerProfileId = secondProfile.Id,
             LineItemColumns = new List<string> { "Client", "Description", "Total" },
             LineItems = new List<CreateInvoiceLineItemRequest>
             {
-                new() { Description = "Development", Quantity = 5m, UnitPrice = 80m, DiscountPercent = 0m, TaxRate = 0m }
+                new() { Description = "Development", Total = 400m, OtherColumns = "client:Acme" }
             }
         });
 
-        Assert.Equal(secondProfile.Id, invoice.BusinessProfileId);
+        Assert.Equal(secondProfile.Id, invoice.CustomerProfileId);
         Assert.Equal("client:text,description:text,total:number", invoice.LineItemColumns);
 
-        var updatedProfile = await dbContext.BusinessProfiles.SingleAsync(x => x.Id == secondProfile.Id);
+        var updatedProfile = await dbContext.CustomerProfiles.SingleAsync(x => x.Id == secondProfile.Id);
         Assert.Equal("client:text,description:text,total:number", updatedProfile.LineItemColumns);
     }
 
@@ -443,11 +438,10 @@ public class InvoiceGenerationTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => draftService.CreateDraftAsync(new CreateInvoiceDraftRequest
         {
-            CustomerName = "Tailspin",
             LineItemColumns = new List<string> { "Description", "UnknownField" },
             LineItems = new List<CreateInvoiceLineItemRequest>
             {
-                new() { Description = "Support", Quantity = 1m, UnitPrice = 50m, DiscountPercent = 0m, TaxRate = 0m }
+                new() { Description = "Support", Total = 50m, OtherColumns = "" }
             }
         }));
     }

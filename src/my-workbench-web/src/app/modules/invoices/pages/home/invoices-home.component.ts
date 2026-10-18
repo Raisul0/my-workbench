@@ -3,7 +3,7 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { InvoicesApiService } from '../../services';
-import { BusinessProfileDetail, BusinessProfileSummary, InvoiceSummary, InvoiceTemplateSummary, TemplateFieldBinding } from '../../models';
+import { CustomerProfileDetail, CustomerProfileSummary, InvoiceSummary, InvoiceTemplateSummary, TemplateFieldBinding } from '../../models';
 
 @Component({
   selector: 'app-invoices-home',
@@ -27,8 +27,8 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   deletingInvoice = false;
   settings: any = null;
   settingsList: any[] = [];
-  selectedProfileForEdit: BusinessProfileDetail | null = null;
-  selectedProfile: BusinessProfileDetail | null = null;
+  selectedProfileForEdit: CustomerProfileDetail | null = null;
+  selectedProfile: CustomerProfileDetail | null = null;
   selectedProfileLineItemColumns: Record<string, string> = {};
   lineItemColumnLabels: Record<string, string> = {};
   templates: InvoiceTemplateSummary[] = [];
@@ -53,7 +53,7 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
   private dragState: { index: number; mode: 'move' | 'resize'; startX: number; startY: number; originX: number; originY: number; originWidth: number; originHeight: number } | null = null;
 
   draftForm!: any;
-  profiles: BusinessProfileSummary  [] = [];
+  profiles: CustomerProfileSummary[] = [];
   protected readonly JSON = JSON;
 
   constructor(
@@ -106,10 +106,10 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
         
         // Populate form fields from the fetched profile
         this.draftForm.patchValue({
-          customerName: profile.issuerName || '',
+          customerName: profile.customerName || '',
           currencyCode: profile.defaultCurrencyCode || 'USD',
-          customerAddress: profile.issuerAddress || '',
-          customerEmail: profile.issuerEmail || '',
+          customerAddress: profile.customerAddress || '',
+          customerEmail: profile.customerEmail || '',
         });
 
 
@@ -678,7 +678,7 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     
   }
 
-  openProfileForm(profile?: BusinessProfileDetail): void {
+  openProfileForm(profile?: CustomerProfileDetail): void {
     this.editingProfileId = profile?.id || null;
     this.showProfileForm = true;
     this.profileFormError = '';
@@ -686,12 +686,12 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
 
     if (!this.profileForm) {
       this.profileForm = this.fb.nonNullable.group({
-        issuerName: ['', Validators.required],
-        issuerAddress: '',
-        issuerEmail: ['', Validators.email],
-        issuerPhone: '',
-        issuerRegistrationNumber: '',
-        issuerTaxNumber: '',
+        customerName: ['', Validators.required],
+        customerAddress: '',
+        customerEmail: ['', Validators.email],
+        customerPhone: '',
+        customerRegistrationNumber: '',
+        customerTaxNumber: '',
         defaultCurrencyCode: 'USD',
         invoicePrefix: 'INV',
         defaultTaxRate: 0,
@@ -716,12 +716,12 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
       }
       
       this.profileForm.patchValue({
-        issuerName: profile.issuerName,
-        issuerAddress: profile.issuerAddress,
-        issuerEmail: profile.issuerEmail,
-        issuerPhone: profile.issuerPhone,
-        issuerRegistrationNumber: profile.issuerRegistrationNumber,
-        issuerTaxNumber: profile.issuerTaxNumber,
+        customerName: profile.customerName,
+        customerAddress: profile.customerAddress,
+        customerEmail: profile.customerEmail,
+        customerPhone: profile.customerPhone,
+        customerRegistrationNumber: profile.customerRegistrationNumber,
+        customerTaxNumber: profile.customerTaxNumber,
         defaultCurrencyCode: profile.defaultCurrencyCode,
         invoicePrefix: profile.invoicePrefix,
         defaultTaxRate: profile.defaultTaxRate,

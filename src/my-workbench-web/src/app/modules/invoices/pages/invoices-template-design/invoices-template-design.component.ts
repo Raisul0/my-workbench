@@ -170,6 +170,7 @@ export class InvoicesTemplateDesignComponent implements OnInit, OnDestroy {
             y: field.Y,
             width: field.Width,
             height: field.Height,
+            customText: field.CustomText,
           }));
         }
         if (layout.BackgroundImagePath) {

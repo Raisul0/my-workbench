@@ -10,7 +10,7 @@ public class InvoiceDbContext : DbContext
     {
     }
 
-    public DbSet<BusinessProfile> BusinessProfiles => Set<BusinessProfile>();
+    public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLineItem> InvoiceLineItems => Set<InvoiceLineItem>();
     public DbSet<InvoiceTemplate> InvoiceTemplates => Set<InvoiceTemplate>();
@@ -20,12 +20,12 @@ public class InvoiceDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<BusinessProfile>(entity =>
+        modelBuilder.Entity<CustomerProfile>(entity =>
         {
             entity.HasKey(x => x.Id);
             entity.Property(x => x.InvoicePrefix).HasMaxLength(32);
             entity.Property(x => x.DefaultCurrencyCode).HasMaxLength(8);
-            entity.Property(x => x.IssuerName).HasMaxLength(200);
+            entity.Property(x => x.CustomerName).HasMaxLength(200);
             entity.Property(x => x.DefaultTerms).HasMaxLength(4000);
             entity.Property(x => x.LineItemColumns).HasMaxLength(256);
             entity.Property(x => x.DefaultTaxRate).HasPrecision(18, 4);
@@ -36,7 +36,7 @@ public class InvoiceDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.InvoiceNumber).HasMaxLength(64);
             entity.HasIndex(x => x.InvoiceNumber).IsUnique();
-            entity.HasIndex(x => x.BusinessProfileId);
+            entity.HasIndex(x => x.CustomerProfileId);
             entity.Property(x => x.CurrencyCode).HasMaxLength(8);
             entity.Property(x => x.LineItemColumns).HasMaxLength(256);
             entity.Property(x => x.Subtotal).HasPrecision(18, 4);
@@ -44,9 +44,9 @@ public class InvoiceDbContext : DbContext
             entity.Property(x => x.TaxTotal).HasPrecision(18, 4);
             entity.Property(x => x.GrandTotal).HasPrecision(18, 4);
             entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasOne(x => x.BusinessProfile)
+            entity.HasOne(x => x.CustomerProfile)
                 .WithMany()
-                .HasForeignKey(x => x.BusinessProfileId)
+                .HasForeignKey(x => x.CustomerProfileId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.LineItems).WithOne(x => x.Invoice).HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Cascade);
         });
