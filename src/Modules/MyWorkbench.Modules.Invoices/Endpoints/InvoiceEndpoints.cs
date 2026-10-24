@@ -57,6 +57,7 @@ public static class InvoiceEndpoints
             {
                 invoice.Id,
                 invoice.CustomerProfileId,
+                invoice.TemplateId,
                 invoice.InvoiceNumber,
                 invoice.Status,
                 invoice.GrandTotal,
@@ -69,18 +70,14 @@ public static class InvoiceEndpoints
         group.MapGet("/templates", async (InvoiceTemplateService service, CancellationToken cancellationToken) =>
         {
             var templates = await service.ListAsync(cancellationToken);
-            return Results.Ok(templates.Select(template => new
-            {
-                template.Id,
-                template.Name,
-                template.Description,
-                template.ActiveVersionId,
-                template.IsArchived,
-                template.ActiveVersion?.VersionNumber,
-                template.ActiveVersion?.SourceType,
-                template.ActiveVersion?.LayoutJson,
-                template.UpdatedAtUtc
-            }));
+            return Results.Ok(templates
+                .Where(x => !x.IsArchived)
+                .Select(template => new
+                {
+                    template.Id,
+                    template.Name,
+                    template.Description
+                }));
         });
 
         group.MapPost("/templates", async (CreateInvoiceTemplateRequest request, InvoiceTemplateService service, CancellationToken cancellationToken) =>

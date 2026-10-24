@@ -6,6 +6,7 @@ public class Invoice
     public Guid CustomerProfileId { get; set; }
     public string InvoiceNumber { get; set; } = string.Empty;
     public InvoiceStatus Status { get; set; } = InvoiceStatus.Draft;
+    public Guid TemplateId { get; set; }
     public Guid TemplateVersionId { get; set; }
     public DateOnly IssueDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     public DateOnly? DueDate { get; set; }
@@ -25,5 +26,6 @@ public class Invoice
     public byte[]? RowVersion { get; set; }
 
     public CustomerProfile? CustomerProfile { get; set; }
+    public InvoiceTemplate? Template { get; set; }
     public ICollection<InvoiceLineItem> LineItems { get; set; } = new List<InvoiceLineItem>();
 }

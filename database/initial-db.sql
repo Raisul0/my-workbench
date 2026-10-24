@@ -124,6 +124,14 @@ BEGIN
 END
 GO
 
+IF COL_LENGTH(N'dbo.Invoices', N'TemplateId') IS NULL
+BEGIN
+    ALTER TABLE dbo.Invoices
+        ADD TemplateId UNIQUEIDENTIFIER NOT NULL
+            CONSTRAINT DF_Invoices_TemplateId DEFAULT NEWID();
+END
+GO
+
 IF COL_LENGTH(N'dbo.Invoices', N'LineItemColumns') IS NULL
 BEGIN
     ALTER TABLE dbo.Invoices
@@ -167,6 +175,19 @@ IF NOT EXISTS (
 )
 BEGIN
     CREATE INDEX IX_Invoices_CustomerProfileId ON dbo.Invoices (CustomerProfileId);
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Invoices_Templates'
+      AND parent_object_id = OBJECT_ID(N'dbo.Invoices')
+)
+BEGIN
+    ALTER TABLE dbo.Invoices
+        ADD CONSTRAINT FK_Invoices_Templates
+        FOREIGN KEY (TemplateId) REFERENCES dbo.InvoiceTemplates (Id) ON DELETE RESTRICT;
 END
 GO
 

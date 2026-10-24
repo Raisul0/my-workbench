@@ -48,6 +48,10 @@ public class InvoiceDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(x => x.CustomerProfileId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Template)
+                .WithMany()
+                .HasForeignKey(x => x.TemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.LineItems).WithOne(x => x.Invoice).HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Cascade);
         });
 

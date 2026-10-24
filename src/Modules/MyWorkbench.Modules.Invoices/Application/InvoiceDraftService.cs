@@ -51,10 +51,13 @@ public class InvoiceDraftService
                 throw new InvalidOperationException("At least one line item is required.");
             }
 
+            // Resolve template and get latest version
+            var (templateId, templateVersionId) = await ResolveTemplateAsync(request.TemplateId, cancellationToken);
+
             var orderedColumns = ResolveLineItemColumns(request.LineItemColumns ?? [], profile);
             var columnsCsv = orderedColumns.Count == 0
                 ? profile.LineItemColumns
-                : string.Join(',', orderedColumns);
+                : InvoiceLineItemColumnCatalog.SerializeWithTypes(orderedColumns);
 
             var lineItems = request.LineItems
                 .Select((line, index) => new InvoiceLineItem
@@ -73,6 +76,8 @@ public class InvoiceDraftService
                 CustomerProfileId = profile.Id,
                 InvoiceNumber = InvoiceNumberAllocator.NextNumber(profile),
                 Status = InvoiceStatus.Draft,
+                TemplateId = templateId,
+                TemplateVersionId = templateVersionId,
                 CurrencyCode = string.IsNullOrWhiteSpace(request.CurrencyCode) ? profile.DefaultCurrencyCode : request.CurrencyCode,
                 Notes = request.Notes,
                 Terms = string.IsNullOrWhiteSpace(request.Terms) ? profile.DefaultTerms : request.Terms,
@@ -365,9 +370,53 @@ public class InvoiceDraftService
             normalizedColumns.Add(normalized);
         }
 
-        profile.LineItemColumns = string.Join(',', normalizedColumns);
+        profile.LineItemColumns = InvoiceLineItemColumnCatalog.SerializeWithTypes(normalizedColumns);
         profile.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         return normalizedColumns;
+    }
+
+    /// <summary>
+    /// Resolves template ID and gets the latest version ID.
+    /// If no template ID provided, uses the first available template.
+    /// </summary>
+    private async Task<(Guid TemplateId, Guid TemplateVersionId)> ResolveTemplateAsync(Guid? requestedTemplateId, CancellationToken cancellationToken)
+    {
+        InvoiceTemplateVersion? latestVersion;
+
+        if (requestedTemplateId.HasValue)
+        {
+            // Get latest version of the specified template
+            latestVersion = await _dbContext.InvoiceTemplateVersions
+                .Where(x => x.TemplateId == requestedTemplateId.Value)
+                .OrderByDescending(x => x.VersionNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (latestVersion == null)
+            {
+                throw new InvalidOperationException($"Template with ID {requestedTemplateId} not found or has no versions.");
+            }
+
+            return (requestedTemplateId.Value, latestVersion.Id);
+        }
+
+        // If no template specified, get the latest version of the first non-archived template
+        latestVersion = await _dbContext.InvoiceTemplateVersions
+            .Join(
+                _dbContext.InvoiceTemplates.Where(t => !t.IsArchived),
+                v => v.TemplateId,
+                t => t.Id,
+                (v, t) => v
+            )
+            .OrderBy(x => x.TemplateId)
+            .ThenByDescending(x => x.VersionNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (latestVersion == null)
+        {
+            throw new InvalidOperationException("No active templates available. Please create a template first.");
+        }
+
+        return (latestVersion.TemplateId, latestVersion.Id);
     }
 }

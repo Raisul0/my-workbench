@@ -35,7 +35,7 @@ public sealed class InvoiceGenerationService
         try
         {
             var invoice = await LoadInvoiceAsync(invoiceId, cancellationToken);
-            var templateVersion = await LoadTemplateVersionAsync(invoice.TemplateVersionId, cancellationToken);
+            var templateVersion = await LoadLatestTemplateVersionAsync(invoice.TemplateId, cancellationToken);
             var html = await _pdfRenderer.RenderPreviewHtmlAsync(templateVersion, invoice, cancellationToken);
             InvoiceServiceLog.Succeeded(_logger, nameof(PreviewHtmlAsync), invoiceId);
             return html;
@@ -55,7 +55,7 @@ public sealed class InvoiceGenerationService
         try
         {
             var invoice = await LoadInvoiceAsync(invoiceId, cancellationToken);
-            var templateVersion = await LoadTemplateVersionAsync(invoice.TemplateVersionId, cancellationToken);
+            var templateVersion = await LoadLatestTemplateVersionAsync(invoice.TemplateId, cancellationToken);
 
             var bytes = await _pdfRenderer.RenderPreviewAsync(templateVersion, invoice, cancellationToken);
             var storageKey = await _fileStorage.StoreAsync(new MemoryStream(bytes), "application/pdf", $"{invoice.InvoiceNumber}.pdf", cancellationToken);
@@ -66,6 +66,7 @@ public sealed class InvoiceGenerationService
             invoice.Status = InvoiceStatus.Generated;
             invoice.GeneratedAtUtc = DateTimeOffset.UtcNow;
             invoice.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            invoice.TemplateVersionId = templateVersion.Id;  // Update to latest version ID
 
             _dbContext.Invoices.Update(invoice);
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -93,6 +94,26 @@ public sealed class InvoiceGenerationService
         }
 
         return invoice;
+    }
+
+    private async Task<InvoiceTemplateVersion> LoadLatestTemplateVersionAsync(Guid templateId, CancellationToken cancellationToken)
+    {
+        if (templateId == Guid.Empty)
+        {
+            throw new InvalidOperationException("The invoice is not associated with a valid template.");
+        }
+
+        var templateVersion = await _dbContext.InvoiceTemplateVersions
+            .Where(x => x.TemplateId == templateId)
+            .OrderByDescending(x => x.VersionNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (templateVersion is null)
+        {
+            throw new InvalidOperationException($"No versions found for template with ID {templateId}.");
+        }
+
+        return templateVersion;
     }
 
     private async Task<InvoiceTemplateVersion> LoadTemplateVersionAsync(Guid templateVersionId, CancellationToken cancellationToken)
