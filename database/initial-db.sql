@@ -29,64 +29,128 @@ GO
 USE [MyWorkbench];
 GO
 
-IF OBJECT_ID(N'dbo.CustomerProfiles', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.CustomerProfiles (
-        Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-        CustomerName NVARCHAR(200) NOT NULL,
-        CustomerAddress NVARCHAR(MAX) NOT NULL,
-        CustomerEmail NVARCHAR(200) NOT NULL,
-        CustomerPhone NVARCHAR(50) NOT NULL,
-        CustomerRegistrationNumber NVARCHAR(200) NOT NULL,
-        CustomerTaxNumber NVARCHAR(200) NOT NULL,
-        TaxLabel NVARCHAR(50) NOT NULL,
-        DefaultCurrencyCode NVARCHAR(8) NOT NULL,
-        InvoicePrefix NVARCHAR(32) NOT NULL,
-        NextSequence INT NOT NULL,
-        DefaultTaxRate DECIMAL(18,4) NOT NULL,
-        DefaultTerms NVARCHAR(4000) NOT NULL,
-        LineItemColumns NVARCHAR(256) NOT NULL,
-        CreatedAtUtc DATETIMEOFFSET NOT NULL,
-        UpdatedAtUtc DATETIMEOFFSET NOT NULL
-    );
-END
+-- ==========================================================
+-- CREATE TABLES
+-- ==========================================================
+
+-- Customer Profiles Table
+CREATE TABLE dbo.CustomerProfiles (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    CustomerName NVARCHAR(200) NOT NULL,
+    CustomerAddress NVARCHAR(MAX) NOT NULL,
+    CustomerEmail NVARCHAR(200) NOT NULL,
+    CustomerPhone NVARCHAR(50) NOT NULL,
+    CustomerRegistrationNumber NVARCHAR(200) NOT NULL,
+    CustomerTaxNumber NVARCHAR(200) NOT NULL,
+    TaxLabel NVARCHAR(50) NOT NULL,
+    DefaultCurrencyCode NVARCHAR(8) NOT NULL,
+    InvoicePrefix NVARCHAR(32) NOT NULL,
+    NextSequence INT NOT NULL,
+    DefaultTaxRate DECIMAL(18,4) NOT NULL,
+    DefaultTerms NVARCHAR(4000) NOT NULL,
+    LineItemColumns NVARCHAR(256) NOT NULL DEFAULT N'description:text,total:number',
+    CreatedAtUtc DATETIMEOFFSET NOT NULL,
+    UpdatedAtUtc DATETIMEOFFSET NOT NULL
+);
 GO
 
-IF COL_LENGTH(N'dbo.CustomerProfiles', N'LineItemColumns') IS NULL
-BEGIN
-    ALTER TABLE dbo.CustomerProfiles
-        ADD LineItemColumns NVARCHAR(256) NOT NULL
-            CONSTRAINT DF_CustomerProfiles_LineItemColumns DEFAULT N'description:text,total:number';
-END
+-- Invoice Templates Table
+CREATE TABLE dbo.InvoiceTemplates (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Name NVARCHAR(200) NOT NULL,
+    Description NVARCHAR(2000) NOT NULL,
+    ActiveVersionId UNIQUEIDENTIFIER NULL,
+    IsArchived BIT NOT NULL DEFAULT 0,
+    CreatedAtUtc DATETIMEOFFSET NOT NULL,
+    UpdatedAtUtc DATETIMEOFFSET NOT NULL
+);
 GO
 
-IF OBJECT_ID(N'dbo.Invoices', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.Invoices (
-        Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-        CustomerProfileId UNIQUEIDENTIFIER NOT NULL,
-        InvoiceNumber NVARCHAR(64) NOT NULL UNIQUE,
-        Status INT NOT NULL,
-        TemplateVersionId UNIQUEIDENTIFIER NOT NULL,
-        IssueDate DATE NOT NULL,
-        DueDate DATE NULL,
-        CurrencyCode NVARCHAR(8) NOT NULL,
-        Notes NVARCHAR(MAX) NOT NULL,
-        Terms NVARCHAR(MAX) NOT NULL,
-        LineItemColumns NVARCHAR(256) NOT NULL,
-        Subtotal DECIMAL(18,4) NOT NULL,
-        DiscountTotal DECIMAL(18,4) NOT NULL,
-        TaxTotal DECIMAL(18,4) NOT NULL,
-        GrandTotal DECIMAL(18,4) NOT NULL,
-        PdfStorageKey NVARCHAR(512) NULL,
-        PdfSha256 NVARCHAR(128) NULL,
-        CreatedAtUtc DATETIMEOFFSET NOT NULL,
-        UpdatedAtUtc DATETIMEOFFSET NOT NULL,
-        GeneratedAtUtc DATETIMEOFFSET NULL,
-        RowVersion ROWVERSION NULL
-    );
-END
+-- Invoice Template Versions Table
+CREATE TABLE dbo.InvoiceTemplateVersions (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    TemplateId UNIQUEIDENTIFIER NOT NULL,
+    VersionNumber INT NOT NULL,
+    SourceType INT NOT NULL,
+    SourceStorageKey NVARCHAR(512) NOT NULL,
+    SelectedPdfPageNumber INT NULL,
+    PageWidthPoints DECIMAL(18,4) NOT NULL,
+    PageHeightPoints DECIMAL(18,4) NOT NULL,
+    LayoutSchemaVersion INT NOT NULL,
+    LayoutJson NVARCHAR(MAX) NOT NULL,
+    CreatedAtUtc DATETIMEOFFSET NOT NULL,
+    CONSTRAINT FK_InvoiceTemplateVersions_Templates FOREIGN KEY (TemplateId) REFERENCES dbo.InvoiceTemplates (Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_InvoiceTemplateVersions_TemplateVersion UNIQUE (TemplateId, VersionNumber)
+);
 GO
+
+-- Invoices Table
+CREATE TABLE dbo.Invoices (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    CustomerProfileId UNIQUEIDENTIFIER NOT NULL,
+    TemplateId UNIQUEIDENTIFIER NOT NULL,
+    InvoiceNumber NVARCHAR(64) NOT NULL UNIQUE,
+    Status INT NOT NULL,
+    TemplateVersionId UNIQUEIDENTIFIER NOT NULL,
+    IssueDate DATE NOT NULL,
+    DueDate DATE NULL,
+    CurrencyCode NVARCHAR(8) NOT NULL,
+    Notes NVARCHAR(MAX) NOT NULL,
+    Terms NVARCHAR(MAX) NOT NULL,
+    LineItemColumns NVARCHAR(256) NOT NULL,
+    Subtotal DECIMAL(18,4) NOT NULL,
+    DiscountTotal DECIMAL(18,4) NOT NULL,
+    TaxTotal DECIMAL(18,4) NOT NULL,
+    GrandTotal DECIMAL(18,4) NOT NULL,
+    PdfStorageKey NVARCHAR(512) NULL,
+    PdfSha256 NVARCHAR(128) NULL,
+    CreatedAtUtc DATETIMEOFFSET NOT NULL,
+    UpdatedAtUtc DATETIMEOFFSET NOT NULL,
+    GeneratedAtUtc DATETIMEOFFSET NULL,
+    RowVersion ROWVERSION NULL,
+    CONSTRAINT FK_Invoices_CustomerProfiles FOREIGN KEY (CustomerProfileId) REFERENCES dbo.CustomerProfiles (Id) ON DELETE NO ACTION,
+    CONSTRAINT FK_Invoices_Templates FOREIGN KEY (TemplateId) REFERENCES dbo.InvoiceTemplates (Id) ON DELETE NO ACTION,
+    CONSTRAINT FK_Invoices_TemplateVersions FOREIGN KEY (TemplateVersionId) REFERENCES dbo.InvoiceTemplateVersions (Id) ON DELETE NO ACTION
+);
+GO
+
+-- Invoice Line Items Table
+CREATE TABLE dbo.InvoiceLineItems (
+    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    InvoiceId UNIQUEIDENTIFIER NOT NULL,
+    SortOrder INT NOT NULL,
+    Description NVARCHAR(1000) NOT NULL,
+    Total DECIMAL(18,4) NOT NULL,
+    OtherColumns NVARCHAR(4000) NOT NULL,
+    CONSTRAINT FK_InvoiceLineItems_Invoices FOREIGN KEY (InvoiceId) REFERENCES dbo.Invoices (Id) ON DELETE CASCADE
+);
+GO
+
+-- ==========================================================
+-- CREATE INDEXES
+-- ==========================================================
+
+CREATE INDEX IX_Invoices_CustomerProfileId ON dbo.Invoices (CustomerProfileId);
+GO
+
+CREATE INDEX IX_Invoices_TemplateId ON dbo.Invoices (TemplateId);
+GO
+
+CREATE INDEX IX_InvoiceLineItems_InvoiceId ON dbo.InvoiceLineItems (InvoiceId);
+GO
+
+-- ==========================================================
+-- ADD FOREIGN KEY FOR ACTIVE VERSION
+-- ==========================================================
+
+ALTER TABLE dbo.InvoiceTemplates
+    ADD CONSTRAINT FK_InvoiceTemplates_ActiveVersion
+    FOREIGN KEY (ActiveVersionId) REFERENCES dbo.InvoiceTemplateVersions (Id) ON DELETE NO ACTION;
+GO
+
+-- ==========================================================
+-- SEED DEFAULT DATA
+-- ==========================================================
 
 IF NOT EXISTS (SELECT 1 FROM dbo.CustomerProfiles)
 BEGIN
@@ -117,145 +181,9 @@ BEGIN
 END
 GO
 
-IF COL_LENGTH(N'dbo.Invoices', N'CustomerProfileId') IS NULL
-BEGIN
-    ALTER TABLE dbo.Invoices
-        ADD CustomerProfileId UNIQUEIDENTIFIER NULL;
-END
-GO
-
-IF COL_LENGTH(N'dbo.Invoices', N'TemplateId') IS NULL
-BEGIN
-    ALTER TABLE dbo.Invoices
-        ADD TemplateId UNIQUEIDENTIFIER NOT NULL
-            CONSTRAINT DF_Invoices_TemplateId DEFAULT NEWID();
-END
-GO
-
-IF COL_LENGTH(N'dbo.Invoices', N'LineItemColumns') IS NULL
-BEGIN
-    ALTER TABLE dbo.Invoices
-        ADD LineItemColumns NVARCHAR(256) NOT NULL
-            CONSTRAINT DF_Invoices_LineItemColumns DEFAULT N'description:text,total:number';
-END
-GO
-
-IF EXISTS (SELECT 1 FROM dbo.Invoices WHERE CustomerProfileId IS NULL)
-BEGIN
-    DECLARE @DefaultCustomerProfileId UNIQUEIDENTIFIER;
-    SELECT TOP (1) @DefaultCustomerProfileId = Id
-    FROM dbo.CustomerProfiles
-    ORDER BY CreatedAtUtc, Id;
-
-    UPDATE dbo.Invoices
-    SET CustomerProfileId = @DefaultCustomerProfileId
-    WHERE CustomerProfileId IS NULL;
-END
-GO
-
-IF EXISTS (
-    SELECT 1
-    FROM sys.columns
-    WHERE object_id = OBJECT_ID(N'dbo.Invoices')
-      AND name = N'CustomerProfileId'
-      AND is_nullable = 1
-)
-AND NOT EXISTS (SELECT 1 FROM dbo.Invoices WHERE CustomerProfileId IS NULL)
-BEGIN
-    ALTER TABLE dbo.Invoices
-        ALTER COLUMN CustomerProfileId UNIQUEIDENTIFIER NOT NULL;
-END
-GO
-
-IF NOT EXISTS (
-    SELECT 1
-    FROM sys.indexes
-    WHERE object_id = OBJECT_ID(N'dbo.Invoices')
-      AND name = N'IX_Invoices_CustomerProfileId'
-)
-BEGIN
-    CREATE INDEX IX_Invoices_CustomerProfileId ON dbo.Invoices (CustomerProfileId);
-END
-GO
-
-IF NOT EXISTS (
-    SELECT 1
-    FROM sys.foreign_keys
-    WHERE name = N'FK_Invoices_Templates'
-      AND parent_object_id = OBJECT_ID(N'dbo.Invoices')
-)
-BEGIN
-    ALTER TABLE dbo.Invoices
-        ADD CONSTRAINT FK_Invoices_Templates
-        FOREIGN KEY (TemplateId) REFERENCES dbo.InvoiceTemplates (Id) ON DELETE RESTRICT;
-END
-GO
-
-IF OBJECT_ID(N'dbo.InvoiceLineItems', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.InvoiceLineItems (
-        Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-        InvoiceId UNIQUEIDENTIFIER NOT NULL,
-        SortOrder INT NOT NULL,
-        Description NVARCHAR(1000) NOT NULL,
-        Total DECIMAL(18,4) NOT NULL,
-        OtherColumns NVARCHAR(4000) NOT NULL,
-        CONSTRAINT FK_InvoiceLineItems_Invoices FOREIGN KEY (InvoiceId) REFERENCES dbo.Invoices (Id) ON DELETE CASCADE
-    );
-END
-GO
-
-IF OBJECT_ID(N'dbo.InvoiceTemplates', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.InvoiceTemplates (
-        Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-        Name NVARCHAR(200) NOT NULL,
-        Description NVARCHAR(2000) NOT NULL,
-        ActiveVersionId UNIQUEIDENTIFIER NULL,
-        IsArchived BIT NOT NULL DEFAULT 0,
-        CreatedAtUtc DATETIMEOFFSET NOT NULL,
-        UpdatedAtUtc DATETIMEOFFSET NOT NULL
-    );
-END
-GO
-
-IF OBJECT_ID(N'dbo.InvoiceTemplateVersions', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.InvoiceTemplateVersions (
-        Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-        TemplateId UNIQUEIDENTIFIER NOT NULL,
-        VersionNumber INT NOT NULL,
-        SourceType INT NOT NULL,
-        SourceStorageKey NVARCHAR(512) NOT NULL,
-        SelectedPdfPageNumber INT NULL,
-        PageWidthPoints DECIMAL(18,4) NOT NULL,
-        PageHeightPoints DECIMAL(18,4) NOT NULL,
-        LayoutSchemaVersion INT NOT NULL,
-        LayoutJson NVARCHAR(MAX) NOT NULL,
-        CreatedAtUtc DATETIMEOFFSET NOT NULL,
-        CONSTRAINT FK_InvoiceTemplateVersions_Templates FOREIGN KEY (TemplateId) REFERENCES dbo.InvoiceTemplates (Id) ON DELETE CASCADE,
-        CONSTRAINT UQ_InvoiceTemplateVersions_TemplateVersion UNIQUE (TemplateId, VersionNumber)
-    );
-END
-GO
-
-IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_InvoiceTemplates_ActiveVersion')
-BEGIN
-    ALTER TABLE dbo.InvoiceTemplates DROP CONSTRAINT FK_InvoiceTemplates_ActiveVersion;
-END
-GO
-
-IF NOT EXISTS (
-    SELECT 1
-    FROM sys.foreign_keys
-    WHERE name = 'FK_InvoiceTemplates_ActiveVersion'
-)
-BEGIN
-    ALTER TABLE dbo.InvoiceTemplates
-        ADD CONSTRAINT FK_InvoiceTemplates_ActiveVersion
-        FOREIGN KEY (ActiveVersionId) REFERENCES dbo.InvoiceTemplateVersions (Id) ON DELETE NO ACTION;
-END
-GO
+-- ==========================================================
+-- CREATE STORED PROCEDURES
+-- ==========================================================
 
 EXEC('CREATE OR ALTER PROCEDURE dbo.usp_UpsertCustomerProfile
     @Id UNIQUEIDENTIFIER,
@@ -314,52 +242,6 @@ BEGIN
         );
     END
 END');
-GO
-
-IF OBJECT_ID(N'dbo.usp_ListInvoices', N'P') IS NULL
-BEGIN
-    EXEC('CREATE PROCEDURE dbo.usp_ListInvoices
-    AS
-    BEGIN
-        SET NOCOUNT ON;
-        SELECT i.*
-        FROM dbo.Invoices i
-        ORDER BY i.CreatedAtUtc DESC;
-    END');
-END
-GO
-
-IF OBJECT_ID(N'dbo.usp_CreateInvoiceTemplate', N'P') IS NULL
-BEGIN
-    EXEC('CREATE PROCEDURE dbo.usp_CreateInvoiceTemplate
-        @Id UNIQUEIDENTIFIER,
-        @Name NVARCHAR(200),
-        @Description NVARCHAR(2000),
-        @CreatedAtUtc DATETIMEOFFSET,
-        @UpdatedAtUtc DATETIMEOFFSET
-    AS
-    BEGIN
-        SET NOCOUNT ON;
-
-        INSERT INTO dbo.InvoiceTemplates (Id, Name, Description, ActiveVersionId, IsArchived, CreatedAtUtc, UpdatedAtUtc)
-        VALUES (@Id, @Name, @Description, NULL, 0, @CreatedAtUtc, @UpdatedAtUtc);
-    END');
-END
-GO
-
-IF OBJECT_ID(N'dbo.usp_GetTemplateVersionById', N'P') IS NULL
-BEGIN
-    EXEC('CREATE PROCEDURE dbo.usp_GetTemplateVersionById
-        @Id UNIQUEIDENTIFIER
-    AS
-    BEGIN
-        SET NOCOUNT ON;
-
-        SELECT *
-        FROM dbo.InvoiceTemplateVersions
-        WHERE Id = @Id;
-    END');
-END
 GO
 
 SELECT 'Database and schema initialized successfully.' AS Status;

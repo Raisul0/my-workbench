@@ -34,6 +34,19 @@
       </label>
 
       <label>
+        Template
+        <select formControlName="templateId" [disabled]="!templates || templates.length === 0">
+          <option value="">Select a template</option>
+          @for (template of templates; track template.id) {
+            <option [value]="template.id">{{ template.name }}</option>
+          }
+        </select>
+        @if (!templates || templates.length === 0) {
+          <small style="color: #999;">No templates uploaded yet</small>
+        }
+      </label>
+
+      <label>
         Customer name
         <input formControlName="customerName" placeholder="Acme Ltd" />
       </label>

@@ -76,7 +76,12 @@ public static class InvoiceEndpoints
                 {
                     template.Id,
                     template.Name,
-                    template.Description
+                    template.Description,
+                    template.ActiveVersionId,
+                    VersionNumber = template.ActiveVersion?.VersionNumber,
+                    SourceType = template.ActiveVersion?.SourceType.ToString(),
+                    LayoutJson = template.ActiveVersion?.LayoutJson,
+                    UpdatedAtUtc = template.UpdatedAtUtc
                 }));
         });
 

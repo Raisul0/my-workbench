@@ -66,6 +66,7 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
       customerName: ['', Validators.required],
       customerAddress: '',
       customerEmail: '',
+      templateId: '',
       currencyCode: 'USD',
       issueDate: [new Date().toISOString().slice(0, 10)],
       lineItems: this.fb.nonNullable.array([this.createLineItemGroup()]),
@@ -875,6 +876,7 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
         customerName: '',
         customerAddress: '',
         customerEmail: '',
+        templateId: '',
         currencyCode: 'USD',
         issueDate: new Date().toISOString().slice(0, 10),
         lineItems: [this.createLineItemGroup().getRawValue()],
@@ -903,7 +905,8 @@ export class InvoicesPageComponent implements OnInit, OnDestroy {
     const totalColumn = profileColumns.find((item) => item.key.toLowerCase() === 'total');
 
     const payload = {
-      businessProfileId: this.selectedProfile?.id,
+      customerProfileId: this.selectedProfile?.id,
+      templateId: this.draftForm.value.templateId || undefined,
       notes: '',
       terms: '',
       currencyCode: String(this.draftForm.value.currencyCode ?? 'USD'),

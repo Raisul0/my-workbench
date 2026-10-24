@@ -12,6 +12,14 @@ export interface InvoiceSummary {
   customerName: string;
 }
 
+export interface Invoice extends InvoiceSummary {
+  customerProfileId: string;
+  templateId: string;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  lineItemColumns: string[];
+}
+
 export interface InvoiceDraftLineItem {
   description: string;
   total: number;
@@ -74,6 +82,7 @@ export interface TemplateLayoutDocument {
 
 export interface CreateInvoiceDraftRequest {
   customerProfileId?: string;
+  templateId?: string;
   notes?: string;
   terms?: string;
   currencyCode?: string;
