@@ -132,16 +132,16 @@ BEGIN
 END
 GO
 
-IF EXISTS (SELECT 1 FROM dbo.Invoices WHERE BusinessProfileId IS NULL)
+IF EXISTS (SELECT 1 FROM dbo.Invoices WHERE CustomerProfileId IS NULL)
 BEGIN
-    DECLARE @DefaultBusinessProfileId UNIQUEIDENTIFIER;
-    SELECT TOP (1) @DefaultBusinessProfileId = Id
-    FROM dbo.BusinessProfiles
+    DECLARE @DefaultCustomerProfileId UNIQUEIDENTIFIER;
+    SELECT TOP (1) @DefaultCustomerProfileId = Id
+    FROM dbo.CustomerProfiles
     ORDER BY CreatedAtUtc, Id;
 
     UPDATE dbo.Invoices
-    SET BusinessProfileId = @DefaultBusinessProfileId
-    WHERE BusinessProfileId IS NULL;
+    SET CustomerProfileId = @DefaultCustomerProfileId
+    WHERE CustomerProfileId IS NULL;
 END
 GO
 
@@ -149,13 +149,13 @@ IF EXISTS (
     SELECT 1
     FROM sys.columns
     WHERE object_id = OBJECT_ID(N'dbo.Invoices')
-      AND name = N'BusinessProfileId'
+      AND name = N'CustomerProfileId'
       AND is_nullable = 1
 )
-AND NOT EXISTS (SELECT 1 FROM dbo.Invoices WHERE BusinessProfileId IS NULL)
+AND NOT EXISTS (SELECT 1 FROM dbo.Invoices WHERE CustomerProfileId IS NULL)
 BEGIN
     ALTER TABLE dbo.Invoices
-        ALTER COLUMN BusinessProfileId UNIQUEIDENTIFIER NOT NULL;
+        ALTER COLUMN CustomerProfileId UNIQUEIDENTIFIER NOT NULL;
 END
 GO
 
@@ -163,10 +163,10 @@ IF NOT EXISTS (
     SELECT 1
     FROM sys.indexes
     WHERE object_id = OBJECT_ID(N'dbo.Invoices')
-      AND name = N'IX_Invoices_BusinessProfileId'
+      AND name = N'IX_Invoices_CustomerProfileId'
 )
 BEGIN
-    CREATE INDEX IX_Invoices_BusinessProfileId ON dbo.Invoices (BusinessProfileId);
+    CREATE INDEX IX_Invoices_CustomerProfileId ON dbo.Invoices (CustomerProfileId);
 END
 GO
 
@@ -236,14 +236,14 @@ BEGIN
 END
 GO
 
-EXEC('CREATE OR ALTER PROCEDURE dbo.usp_UpsertBusinessProfile
+EXEC('CREATE OR ALTER PROCEDURE dbo.usp_UpsertCustomerProfile
     @Id UNIQUEIDENTIFIER,
-    @IssuerName NVARCHAR(200),
-    @IssuerAddress NVARCHAR(MAX),
-    @IssuerEmail NVARCHAR(200),
-    @IssuerPhone NVARCHAR(50),
-    @IssuerRegistrationNumber NVARCHAR(200),
-    @IssuerTaxNumber NVARCHAR(200),
+    @CustomerName NVARCHAR(200),
+    @CustomerAddress NVARCHAR(MAX),
+    @CustomerEmail NVARCHAR(200),
+    @CustomerPhone NVARCHAR(50),
+    @CustomerRegistrationNumber NVARCHAR(200),
+    @CustomerTaxNumber NVARCHAR(200),
     @TaxLabel NVARCHAR(50),
     @DefaultCurrencyCode NVARCHAR(8),
     @InvoicePrefix NVARCHAR(32),
@@ -257,16 +257,16 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF EXISTS (SELECT 1 FROM dbo.BusinessProfiles WHERE Id = @Id)
+    IF EXISTS (SELECT 1 FROM dbo.CustomerProfiles WHERE Id = @Id)
     BEGIN
-        UPDATE dbo.BusinessProfiles
+        UPDATE dbo.CustomerProfiles
         SET
-            IssuerName = @IssuerName,
-            IssuerAddress = @IssuerAddress,
-            IssuerEmail = @IssuerEmail,
-            IssuerPhone = @IssuerPhone,
-            IssuerRegistrationNumber = @IssuerRegistrationNumber,
-            IssuerTaxNumber = @IssuerTaxNumber,
+            CustomerName = @CustomerName,
+            CustomerAddress = @CustomerAddress,
+            CustomerEmail = @CustomerEmail,
+            CustomerPhone = @CustomerPhone,
+            CustomerRegistrationNumber = @CustomerRegistrationNumber,
+            CustomerTaxNumber = @CustomerTaxNumber,
             TaxLabel = @TaxLabel,
             DefaultCurrencyCode = @DefaultCurrencyCode,
             InvoicePrefix = @InvoicePrefix,
@@ -279,15 +279,15 @@ BEGIN
     END
     ELSE
     BEGIN
-        INSERT INTO dbo.BusinessProfiles (
-            Id, IssuerName, IssuerAddress, IssuerEmail, IssuerPhone,
-            IssuerRegistrationNumber, IssuerTaxNumber, TaxLabel,
+        INSERT INTO dbo.CustomerProfiles (
+            Id, CustomerName, CustomerAddress, CustomerEmail, CustomerPhone,
+            CustomerRegistrationNumber, CustomerTaxNumber, TaxLabel,
             DefaultCurrencyCode, InvoicePrefix, NextSequence, DefaultTaxRate,
             DefaultTerms, LineItemColumns, CreatedAtUtc, UpdatedAtUtc
         )
         VALUES (
-            @Id, @IssuerName, @IssuerAddress, @IssuerEmail, @IssuerPhone,
-            @IssuerRegistrationNumber, @IssuerTaxNumber, @TaxLabel,
+            @Id, @CustomerName, @CustomerAddress, @CustomerEmail, @CustomerPhone,
+            @CustomerRegistrationNumber, @CustomerTaxNumber, @TaxLabel,
             @DefaultCurrencyCode, @InvoicePrefix, @NextSequence, @DefaultTaxRate,
             @DefaultTerms, @LineItemColumns, @CreatedAtUtc, @UpdatedAtUtc
         );
@@ -338,35 +338,6 @@ BEGIN
         FROM dbo.InvoiceTemplateVersions
         WHERE Id = @Id;
     END');
-END
-GO
-
-IF NOT EXISTS (SELECT 1 FROM dbo.BusinessProfiles)
-BEGIN
-    INSERT INTO dbo.BusinessProfiles (
-        Id, IssuerName, IssuerAddress, IssuerEmail, IssuerPhone,
-        IssuerRegistrationNumber, IssuerTaxNumber, TaxLabel,
-        DefaultCurrencyCode, InvoicePrefix, NextSequence, DefaultTaxRate,
-        DefaultTerms, LineItemColumns, CreatedAtUtc, UpdatedAtUtc
-    )
-    VALUES (
-        NEWID(),
-        N'My Business',
-        N'',
-        N'',
-        N'',
-        N'',
-        N'',
-        N'Tax',
-        N'USD',
-        N'INV',
-        100,
-        0,
-        N'Payment due within 14 days.',
-        N'description:text,total:number',
-        SYSDATETIMEOFFSET(),
-        SYSDATETIMEOFFSET()
-    );
 END
 GO
 

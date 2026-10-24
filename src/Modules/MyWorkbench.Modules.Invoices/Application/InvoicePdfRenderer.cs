@@ -90,13 +90,9 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
             using var doc = JsonDocument.Parse(layoutJson);
             var root = doc.RootElement;
 
-            // Parse background image path
             if (root.TryGetProperty("BackgroundImagePath", out var bgProp))
-            {
                 layout.BackgroundImagePath = bgProp.GetString() ?? string.Empty;
-            }
 
-            // Parse fields
             if (root.TryGetProperty("Fields", out var fieldsArray))
             {
                 foreach (var fieldElement in fieldsArray.EnumerateArray())
@@ -121,13 +117,47 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
                     if (fieldElement.TryGetProperty("Height", out var hProp))
                         field.Height = hProp.GetDecimal();
 
+                    if (fieldElement.TryGetProperty("ContentSource", out var csProp))
+                        field.ContentSource = csProp.GetString() ?? string.Empty;
+
+                    if (fieldElement.TryGetProperty("CustomText", out var ctProp))
+                        field.CustomText = ctProp.GetString() ?? string.Empty;
+
+                    if (fieldElement.TryGetProperty("FontSize", out var fsProp) && fsProp.ValueKind == JsonValueKind.Number)
+                        field.FontSize = fsProp.GetInt32();
+
+                    if (fieldElement.TryGetProperty("FontStyle", out var fstProp))
+                        field.FontStyle = fstProp.GetString() ?? string.Empty;
+
+                    if (fieldElement.TryGetProperty("TextColor", out var tcProp))
+                        field.TextColor = tcProp.GetString() ?? string.Empty;
+
+                    if (fieldElement.TryGetProperty("BackgroundColor", out var bcProp))
+                        field.BackgroundColor = bcProp.GetString() ?? string.Empty;
+
+                    if (fieldElement.TryGetProperty("BorderSize", out var bsProp) && bsProp.ValueKind == JsonValueKind.Number)
+                        field.BorderSize = bsProp.GetInt32();
+
+                    if (fieldElement.TryGetProperty("LineItemColumns", out var colsArray) && colsArray.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var colEl in colsArray.EnumerateArray())
+                        {
+                            var col = new TemplateLineItemColumn();
+                            if (colEl.TryGetProperty("Key", out var ckProp)) col.Key = ckProp.GetString() ?? string.Empty;
+                            if (colEl.TryGetProperty("Label", out var clProp)) col.Label = clProp.GetString() ?? string.Empty;
+                            if (colEl.TryGetProperty("WidthMm", out var cwProp) && cwProp.ValueKind == JsonValueKind.Number) col.WidthMm = cwProp.GetDecimal();
+                            if (colEl.TryGetProperty("Type", out var ctypeProp)) col.Type = ctypeProp.GetString() ?? "text";
+                            field.LineItemColumns.Add(col);
+                        }
+                    }
+
                     layout.Fields.Add(field);
                 }
             }
         }
         catch (JsonException)
         {
-            // If layout JSON is invalid, return default empty layout
+            // Layout JSON is invalid; return default empty layout
         }
 
         return layout;
@@ -152,6 +182,22 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         public decimal Y { get; set; }
         public decimal Width { get; set; }
         public decimal Height { get; set; }
+        public string ContentSource { get; set; } = string.Empty;
+        public string CustomText { get; set; } = string.Empty;
+        public int FontSize { get; set; } = 12;
+        public string FontStyle { get; set; } = "normal";
+        public string TextColor { get; set; } = "#000000";
+        public string BackgroundColor { get; set; } = string.Empty;
+        public int BorderSize { get; set; }
+        public List<TemplateLineItemColumn> LineItemColumns { get; set; } = new();
+    }
+
+    private class TemplateLineItemColumn
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public decimal WidthMm { get; set; }
+        public string Type { get; set; } = "text";
     }
 
 
@@ -169,7 +215,33 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         var taxTotal = invoice?.TaxTotal ?? 0m;
         var grandTotal = invoice?.GrandTotal ?? 0m;
         var lineItems = invoice?.LineItems ?? new List<InvoiceLineItem>();
-        var orderedColumns = ParseLineItemColumns(invoice?.LineItemColumns);
+
+        // Parse layout to extract column configs and field styles
+        var layout = ParseTemplateLayout(version.LayoutJson);
+        var tableField = layout.Fields.FirstOrDefault(f =>
+            f.Type.Equals("Table", StringComparison.OrdinalIgnoreCase) ||
+            f.ContentSource.Equals("lineItems", StringComparison.OrdinalIgnoreCase));
+
+        // Use layout column configs when available; otherwise fall back to invoice columns
+        IReadOnlyList<(string Name, string Type, string Label, decimal WidthPct)> orderedColumnsWithMeta;
+        if (tableField is not null && tableField.LineItemColumns.Count > 0)
+        {
+            var totalWidth = tableField.LineItemColumns.Sum(c => c.WidthMm);
+            if (totalWidth <= 0) totalWidth = 1;
+            orderedColumnsWithMeta = tableField.LineItemColumns
+                .Select(c => (c.Key, c.Type, c.Label.Length > 0 ? c.Label : ToDisplayLabel(c.Key), Math.Round(c.WidthMm / totalWidth * 100m, 1)))
+                .ToList();
+        }
+        else
+        {
+            var fallback = ParseLineItemColumns(invoice?.LineItemColumns);
+            orderedColumnsWithMeta = fallback.Select(c => (c.Name, c.Type, ToDisplayLabel(c.Name), 0m)).ToList();
+        }
+
+        // Extract styles from layout Table field
+        var tableFontSize = (tableField?.FontSize ?? 0) > 0 ? tableField!.FontSize : 13;
+        var tableTextColor = !string.IsNullOrWhiteSpace(tableField?.TextColor) ? tableField!.TextColor : "#475569";
+        var tableHeaderBg = !string.IsNullOrWhiteSpace(tableField?.BackgroundColor) ? tableField!.BackgroundColor : "#f1f5f9";
 
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
@@ -197,7 +269,7 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         sb.AppendLine("    .line-items { padding: 2rem; border-bottom: 1px solid #e2e8f0; }");
         sb.AppendLine("    .line-items h3 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 1rem; }");
         sb.AppendLine("    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }");
-        sb.AppendLine("    th { background: #f1f5f9; border-bottom: 2px solid #cbd5e1; padding: 0.75rem; text-align: left; font-weight: 600; color: #475569; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }");
+        sb.Append("    th { background: ").Append(tableHeaderBg).Append("; border-bottom: 2px solid #cbd5e1; padding: 0.75rem; text-align: left; font-weight: 600; color: ").Append(tableTextColor).AppendLine("; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }");
         sb.AppendLine("    td { border-bottom: 1px solid #e2e8f0; padding: 0.75rem; }");
         sb.AppendLine("    tr:last-child td { border-bottom: none; }");
         sb.AppendLine("    .totals { padding: 2rem; display: flex; justify-content: flex-end; gap: 3rem; }");
@@ -258,12 +330,13 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         sb.AppendLine("        <thead>");
         sb.AppendLine("          <tr>");
 
-        foreach (var column in orderedColumns)
+        foreach (var column in orderedColumnsWithMeta)
         {
-            var alignment = IsRightAlignedColumn(column.Name, column.Type) ? " style=\"text-align: right;\"" : string.Empty;
-            var label = ToDisplayLabel(column.Name);
-            sb.Append("            <th").Append(alignment).Append(">")
-                .Append(System.Net.WebUtility.HtmlEncode(label))
+            var isRight = IsRightAlignedColumn(column.Name, column.Type);
+            var alignment = isRight ? " style=\"text-align: right;\"" : string.Empty;
+            var widthStyle = column.WidthPct > 0 ? $" style=\"width: {column.WidthPct}%;{(isRight ? " text-align: right;" : "")}\"" : alignment;
+            sb.Append("            <th").Append(widthStyle).Append(">")
+                .Append(System.Net.WebUtility.HtmlEncode(column.Label))
                 .AppendLine("</th>");
         }
 
@@ -275,10 +348,11 @@ public sealed class InvoicePdfRenderer : IInvoicePdfRenderer
         {
             sb.AppendLine("          <tr>");
 
-            foreach (var column in orderedColumns)
+            foreach (var column in orderedColumnsWithMeta)
             {
-                var alignment = IsRightAlignedColumn(column.Name, column.Type) ? " style=\"text-align: right;\"" : string.Empty;
-                var cellValue = BuildLineItemCell(column, pair.li, pair.index, issueDate, currency);
+                var isRight = IsRightAlignedColumn(column.Name, column.Type);
+                var alignment = isRight ? " style=\"text-align: right;\"" : string.Empty;
+                var cellValue = BuildLineItemCell((column.Name, column.Type), pair.li, pair.index, issueDate, currency);
                 sb.Append("            <td").Append(alignment).Append(">")
                     .Append(System.Net.WebUtility.HtmlEncode(cellValue))
                     .AppendLine("</td>");

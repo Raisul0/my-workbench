@@ -10,37 +10,29 @@
 </section>
 
 @if (loading) {
-  <div class="loading-container">
-    <p>Loading template…</p>
-  </div>
+  <div class="loading-container"><p>Loading template…</p></div>
 }
-
 @if (errorMessage) {
   <p class="error-panel">{{ errorMessage }}</p>
 }
-
 @if (successMessage) {
   <p class="success-panel">{{ successMessage }}</p>
 }
 
 @if (!loading && template) {
   <div class="template-designer-layout">
-    <!-- Left sidebar: Tools and field properties -->
+
+    <!-- ─── Left Sidebar ─────────────────────────────────────────── -->
     <aside class="designer-sidebar">
-      <!-- Background section -->
+
+      <!-- Background -->
       <div class="sidebar-section">
         <h3>Background</h3>
-        <p class="section-description">Upload a custom background image for your invoice</p>
-
         @if (!backgroundImagePreview) {
           <label class="file-input-label">
             Choose Image
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/jpg"
-              (change)="onBackgroundImageChange($event)"
-              style="display: none"
-            />
+            <input type="file" accept="image/png,image/jpeg,image/jpg"
+              (change)="onBackgroundImageChange($event)" style="display:none" />
           </label>
         } @else {
           <div class="background-preview">
@@ -48,125 +40,164 @@
             <button type="button" class="danger-button" (click)="clearBackground()">Remove</button>
           </div>
         }
-
         @if (backgroundUploadError) {
           <p class="error">{{ backgroundUploadError }}</p>
         }
       </div>
 
-      <!-- Suggested zones section -->
+      <!-- Profile selector -->
       <div class="sidebar-section">
-        <h3>Suggested Zones</h3>
-        <p class="section-description">Click to add pre-positioned field zones</p>
-
-        @for (zone of suggestedZones; track zone.id) {
-          <div class="zone-card">
-            <div class="zone-header">
-              <strong>{{ zone.name }}</strong>
-              <button type="button" class="small-button add-btn" (click)="addFieldFromZone(zone)">Add</button>
-            </div>
-            <p class="zone-description">{{ zone.description }}</p>
-          </div>
+        <h3>Profile</h3>
+        <p class="section-description">Select a profile to import line item columns</p>
+        <select class="full-select" [value]="selectedProfileId" (change)="onProfileSelected($any($event.target).value)">
+          <option value="">— Select profile —</option>
+          @for (p of profiles; track p.id) {
+            <option [value]="p.id">{{ p.customerName }}</option>
+          }
+        </select>
+        @if (selectedProfile) {
+          <p class="muted" style="margin-top:6px">Columns: {{ selectedProfile.lineItemColumns || 'none' }}</p>
         }
       </div>
 
-      <!-- Add custom field section -->
+      <!-- Content palette -->
       <div class="sidebar-section">
-        <h3>Custom Fields</h3>
-        <button type="button" class="secondary-button" (click)="addField()">Add Custom Field</button>
+        <h3>Add Content</h3>
+        <p class="section-description">Click to place a content block on the canvas</p>
+        <div class="content-palette">
+          @for (opt of contentOptions; track opt.contentSource) {
+            <button type="button" class="content-option-btn" (click)="addFieldWithContent(opt)"
+              [title]="opt.label">
+              <span class="opt-icon">{{ opt.icon }}</span>
+              <span class="opt-label">{{ opt.label }}</span>
+            </button>
+          }
+        </div>
       </div>
 
-      <!-- Field properties section -->
-      @if (selectedFieldIndex >= 0 && fields[selectedFieldIndex]) {
-        <div class="sidebar-section selected-field-props">
+      <!-- Field Properties -->
+      @if (selectedField) {
+        <div class="sidebar-section field-props-section">
           <h3>Field Properties</h3>
-          <div class="field-property">
-            <label>
-              Field Name
-              <input
-                type="text"
-                [value]="fields[selectedFieldIndex].name"
-                (change)="updateFieldProperty(selectedFieldIndex, 'name', $any($event.target).value)"
-              />
-            </label>
-          </div>
 
-          <div class="field-property">
-            <label>
-              Type
-              <select
-                [value]="fields[selectedFieldIndex].type"
-                (change)="updateFieldProperty(selectedFieldIndex, 'type', $any($event.target).value)"
-              >
-                @for (type of fieldTypes; track type) {
-                  <option [value]="type">{{ type }}</option>
+          <!-- Content source -->
+          <div class="prop-row">
+            <label>Content
+              <select [value]="selectedField.contentSource || ''"
+                (change)="updateFieldProperty(selectedFieldIndex, 'contentSource', $any($event.target).value)">
+                <option value="">— none —</option>
+                @for (opt of contentOptions; track opt.contentSource) {
+                  <option [value]="opt.contentSource">{{ opt.label }}</option>
                 }
               </select>
             </label>
           </div>
 
-          @if (fields[selectedFieldIndex].type === 'Text') {
-            <div class="field-property">
-              <label>
-                Custom Text
-                <input
-                  type="text"
-                  [value]="fields[selectedFieldIndex].customText || ''"
+          @if (selectedField.contentSource === 'custom') {
+            <div class="prop-row">
+              <label>Custom Text
+                <input type="text" [value]="selectedField.customText || ''"
                   (change)="updateFieldProperty(selectedFieldIndex, 'customText', $any($event.target).value)"
-                  placeholder="e.g., Invoice, Terms & Conditions"
-                />
+                  placeholder="Static label or value" />
               </label>
-              <p class="field-hint">Leave empty to use as a data field</p>
             </div>
           }
 
-          <div class="field-coordinates">
-            <label>
-              X (mm)
-              <input
-                type="number"
-                [value]="fields[selectedFieldIndex].x"
-                (change)="updateFieldProperty(selectedFieldIndex, 'x', +$any($event.target).value)"
-                step="1"
-              />
+          <!-- Position & Size -->
+          <div class="prop-grid-2">
+            <label>X (mm)
+              <input type="number" step="0.5" [value]="selectedField.x ?? 0"
+                (change)="updateFieldProperty(selectedFieldIndex, 'x', +$any($event.target).value)" />
             </label>
-            <label>
-              Y (mm)
-              <input
-                type="number"
-                [value]="fields[selectedFieldIndex].y"
-                (change)="updateFieldProperty(selectedFieldIndex, 'y', +$any($event.target).value)"
-                step="1"
-              />
+            <label>Y (mm)
+              <input type="number" step="0.5" [value]="selectedField.y ?? 0"
+                (change)="updateFieldProperty(selectedFieldIndex, 'y', +$any($event.target).value)" />
             </label>
-          </div>
-
-          <div class="field-dimensions">
-            <label>
-              Width (mm)
-              <input
-                type="number"
-                [value]="fields[selectedFieldIndex].width"
-                (change)="updateFieldProperty(selectedFieldIndex, 'width', +$any($event.target).value)"
-                step="1"
-              />
+            <label>Width (mm)
+              <input type="number" step="0.5" min="5" [value]="selectedField.width ?? 60"
+                (change)="updateFieldProperty(selectedFieldIndex, 'width', +$any($event.target).value)" />
             </label>
-            <label>
-              Height (mm)
-              <input
-                type="number"
-                [value]="fields[selectedFieldIndex].height"
-                (change)="updateFieldProperty(selectedFieldIndex, 'height', +$any($event.target).value)"
-                step="1"
-              />
+            <label>Height (mm)
+              <input type="number" step="0.5" min="4" [value]="selectedField.height ?? 10"
+                (change)="updateFieldProperty(selectedFieldIndex, 'height', +$any($event.target).value)" />
             </label>
           </div>
 
-          <button
-            type="button"
-            class="danger-button full-width"
-            (click)="removeField(selectedFieldIndex)"
-          >
+          <!-- Styling -->
+          <div class="styling-group">
+            <h4>Styling</h4>
+            <div class="prop-grid-2">
+              <label>Font Size
+                <input type="number" min="6" max="72" step="1" [value]="selectedField.fontSize ?? 12"
+                  (change)="updateFieldProperty(selectedFieldIndex, 'fontSize', +$any($event.target).value)" />
+              </label>
+              <label>Font Style
+                <select [value]="selectedField.fontStyle || 'normal'"
+                  (change)="updateFieldProperty(selectedFieldIndex, 'fontStyle', $any($event.target).value)">
+                  <option value="normal">Normal</option>
+                  <option value="bold">Bold</option>
+                  <option value="italic">Italic</option>
+                  <option value="bold italic">Bold Italic</option>
+                </select>
+              </label>
+              <label>Text Color
+                <input type="color" [value]="selectedField.textColor || '#000000'"
+                  (input)="updateFieldProperty(selectedFieldIndex, 'textColor', $any($event.target).value)" />
+              </label>
+              <label>Bg Color
+                <input type="color" [value]="selectedField.backgroundColor || '#ffffff'"
+                  (input)="updateFieldProperty(selectedFieldIndex, 'backgroundColor', $any($event.target).value)" />
+              </label>
+              <label style="grid-column:span 2">Border (px)
+                <input type="number" min="0" max="10" step="1" [value]="selectedField.borderSize ?? 0"
+                  (change)="updateFieldProperty(selectedFieldIndex, 'borderSize', +$any($event.target).value)" />
+              </label>
+            </div>
+          </div>
+
+          <!-- Column management (Table type) -->
+          @if (selectedField.type === 'Table' || selectedField.contentSource === 'lineItems') {
+            <div class="columns-group">
+              <div class="columns-header">
+                <h4>Line Item Columns</h4>
+                <div class="columns-actions">
+                  <button type="button" class="small-button import-btn"
+                    (click)="importColumnsFromProfile()"
+                    [disabled]="!selectedProfile"
+                    [title]="selectedProfile ? 'Import columns from selected profile' : 'Select a profile first'">
+                    Import from Profile
+                  </button>
+                  <button type="button" class="small-button add-col-btn" (click)="addColumn()">+ Add</button>
+                </div>
+              </div>
+
+              @if (!selectedField.lineItemColumns || selectedField.lineItemColumns.length === 0) {
+                <p class="muted">No columns configured. Import from profile or add manually.</p>
+              } @else {
+                <div class="columns-table-head">
+                  <span>Key</span>
+                  <span>Label</span>
+                  <span>Width (mm)</span>
+                  <span></span>
+                </div>
+                @for (col of selectedField.lineItemColumns; track $index; let ci = $index) {
+                  <div class="column-row">
+                    <input type="text" [(ngModel)]="selectedField.lineItemColumns![ci].key" placeholder="key" />
+                    <input type="text" [(ngModel)]="selectedField.lineItemColumns![ci].label" placeholder="Label" />
+                    <input type="number" min="5" step="1"
+                      [(ngModel)]="selectedField.lineItemColumns![ci].widthMm"
+                      class="width-input" />
+                    <button type="button" class="remove-col-btn" (click)="removeColumn(ci)">×</button>
+                  </div>
+                }
+                <p class="muted col-total">
+                  Total: {{ getTotalColumnWidth() | number:'1.0-1' }} mm
+                </p>
+              }
+            </div>
+          }
+
+          <button type="button" class="danger-button full-width" (click)="removeField(selectedFieldIndex)">
             Delete Field
           </button>
         </div>
@@ -180,19 +211,10 @@
         } @else {
           <div class="fields-list">
             @for (field of fields; track $index; let index = $index) {
-              <button
-                type="button"
-                class="field-item"
+              <button type="button" class="field-item"
                 [class.selected]="selectedFieldIndex === index"
-                (click)="selectField(index)"
-              >
-                <span class="field-name">
-                  @if (field.customText) {
-                    {{ field.customText }}
-                  } @else {
-                    {{ field.name }}
-                  }
-                </span>
+                (click)="selectField(index)">
+                <span class="field-name">{{ getFieldLabel(field) }}</span>
                 <span class="field-type">{{ field.type }}</span>
               </button>
             }
@@ -201,24 +223,20 @@
       </div>
     </aside>
 
-    <!-- Main canvas area -->
+    <!-- ─── Canvas ────────────────────────────────────────────────── -->
     <main class="designer-canvas-container">
       <div class="canvas-toolbar">
-        <p class="canvas-info">A4 Paper (210×297mm) • {{ fields.length }} field{{ fields.length !== 1 ? 's' : '' }}</p>
-        <div class="canvas-zoom">
-          <small>Zoom: 50%</small>
-        </div>
+        <p class="canvas-info">A4 (210×297 mm) • {{ fields.length }} field{{ fields.length !== 1 ? 's' : '' }}</p>
+        <small class="canvas-zoom">Drag fields to position • resize handle at bottom-right</small>
       </div>
 
-      <!-- Canvas with A4 paper size -->
       <div class="canvas-wrapper">
-        <div
-          class="canvas"
+        <div class="canvas"
           [style.width.px]="getCanvasPixelWidth()"
           [style.height.px]="getCanvasPixelHeight()"
-          [style.backgroundImage]="backgroundImagePreview ? 'url(' + backgroundImagePreview + ')' : 'none'"
-        >
-          <!-- Grid background -->
+          [style.backgroundImage]="backgroundImagePreview ? 'url(' + backgroundImagePreview + ')' : 'none'">
+
+          <!-- Grid overlay -->
           <svg class="grid-overlay" [attr.width]="getCanvasPixelWidth()" [attr.height]="getCanvasPixelHeight()">
             <defs>
               <pattern id="grid" [attr.width]="pixelsPerMm * 10" [attr.height]="pixelsPerMm * 10" patternUnits="userSpaceOnUse">
@@ -230,50 +248,35 @@
 
           <!-- Field boxes -->
           @for (field of fields; track $index; let index = $index) {
-            <div
-              class="field-box"
+            <div class="field-box"
               [class.selected]="selectedFieldIndex === index"
               [style.left.px]="getFieldPixelX(field)"
               [style.top.px]="getFieldPixelY(field)"
               [style.width.px]="getFieldPixelWidth(field)"
               [style.height.px]="getFieldPixelHeight(field)"
+              [ngStyle]="getFieldPreviewStyle(field)"
               (click)="selectField(index)"
-            >
-              <div
-                class="field-content"
-                [style.pointerEvents]="dragState?.mode === 'move' ? 'none' : 'auto'"
-                (pointerdown)="startFieldDrag($event, index, 'move')"
-              >
-                @if (field.customText) {
-                  <span class="field-label">{{ field.customText }}</span>
-                } @else {
-                  <span class="field-label">{{ field.name }}</span>
-                }
-                <span class="field-type-badge">{{ field.type }}</span>
-              </div>
+              (pointerdown)="startFieldDrag($event, index, 'move')">
 
-              <!-- Resize handle -->
-              <div
-                class="resize-handle"
+              <span class="field-inner-label">{{ getFieldLabel(field) }}</span>
+              <span class="field-type-badge">{{ field.type }}</span>
+
+              @if (field.type === 'Table' && field.lineItemColumns && field.lineItemColumns.length > 0) {
+                <div class="field-column-preview">
+                  @for (col of field.lineItemColumns; track col.key) {
+                    <span class="col-chip">{{ col.label || col.key }}</span>
+                  }
+                </div>
+              }
+
+              <div class="resize-handle"
                 (pointerdown)="startFieldDrag($event, index, 'resize')"
-                title="Drag to resize"
-              ></div>
+                title="Drag to resize"></div>
             </div>
           }
         </div>
       </div>
-
-      <!-- Canvas legend -->
-      <div class="canvas-legend">
-        <p><strong>How to use:</strong></p>
-        <ul>
-          <li>Click on suggested zones to add pre-positioned fields</li>
-          <li>Drag fields to move them around the canvas</li>
-          <li>Use the resize handle (⊙) in the bottom-right to change size</li>
-          <li>Click a field to select and edit its properties in the sidebar</li>
-          <li>Upload a background image for your invoice design</li>
-        </ul>
-      </div>
     </main>
+
   </div>
 }

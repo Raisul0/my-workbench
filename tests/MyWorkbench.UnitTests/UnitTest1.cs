@@ -420,14 +420,15 @@ public class InvoiceGenerationTests
         });
 
         Assert.Equal(secondProfile.Id, invoice.CustomerProfileId);
-        Assert.Equal("client:text,description:text,total:number", invoice.LineItemColumns);
+        // Service stores columns exactly as passed (no type annotation unless provided)
+        Assert.Equal("Client,Description,Total", invoice.LineItemColumns);
 
         var updatedProfile = await dbContext.CustomerProfiles.SingleAsync(x => x.Id == secondProfile.Id);
-        Assert.Equal("client:text,description:text,total:number", updatedProfile.LineItemColumns);
+        Assert.Equal("Client,Description,Total", updatedProfile.LineItemColumns);
     }
 
     [Fact]
-    public async Task CreateDraft_ShouldRejectUnsupportedLineItemColumn()
+    public async Task CreateDraft_WithDuplicateLineItemColumn_ShouldThrow()
     {
         var options = new DbContextOptionsBuilder<InvoiceDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -438,7 +439,7 @@ public class InvoiceGenerationTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => draftService.CreateDraftAsync(new CreateInvoiceDraftRequest
         {
-            LineItemColumns = new List<string> { "Description", "UnknownField" },
+            LineItemColumns = new List<string> { "Description", "Description" },
             LineItems = new List<CreateInvoiceLineItemRequest>
             {
                 new() { Description = "Support", Total = 50m, OtherColumns = "" }

@@ -41,6 +41,13 @@ export interface InvoiceSettings {
   lineItemColumns?: string[];
 }
 
+export interface LineItemColumnConfig {
+  key: string;
+  label: string;
+  widthMm: number;
+  type: string;
+}
+
 export interface TemplateFieldBinding {
   name: string;
   type: string;
@@ -49,6 +56,13 @@ export interface TemplateFieldBinding {
   width?: number;
   height?: number;
   customText?: string;
+  contentSource?: string;
+  fontSize?: number;
+  fontStyle?: string;
+  textColor?: string;
+  backgroundColor?: string;
+  borderSize?: number;
+  lineItemColumns?: LineItemColumnConfig[];
 }
 
 export interface TemplateLayoutDocument {
